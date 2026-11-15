@@ -412,7 +412,7 @@
     f.subj = el('select', { id: 'dgn-subj', required: true });
     f.cls.addEventListener('change', fillSubjects);
     fillSubjects();
-    f.teacherLabel = el('label', { for: 'dgn-teacher' }, ['Επώνυμο']);
+    f.teacherLabel = el('label', { for: 'dgn-teacher' }, ['Εκπαιδευτικός']);
     setTeacherField();
     f.btn = el('button', { type: 'submit', class: 'dgn-primary', text: 'Δήλωση' });
     var form2 = el('form', { class: 'dgn-form', autocomplete: 'off', onsubmit: submit }, [
