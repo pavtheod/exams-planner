@@ -78,6 +78,7 @@ function dgn_shortcode() {
 		'access'     => $s['access'],
 		'level'      => $who['level'],
 		'userName'   => $who['name'],
+		'noRights'   => 'users' === $s['access'] && is_user_logged_in() && 'public' === $who['level'], // συνδεδεμένος, αλλά ο λογαριασμός δεν γίνεται δεκτός
 		'loginUrl'   => wp_login_url( get_permalink() ),
 		'ssoLogin'   => 'sso' === $s['access'] ? dgn_sso_service_url( $s ) : '',
 		'ssoLogout'  => 'sso' === $s['access'] ? dgn_sso_logout_url( $s ) : '',
@@ -85,6 +86,8 @@ function dgn_shortcode() {
 		'pageTitle'  => wp_strip_all_tags( html_entity_decode( get_the_title(), ENT_QUOTES, 'UTF-8' ) ),
 		'classes'    => dgn_classes( $s ),
 		'subjects'   => dgn_subjects( $s ),
+		'subjGrades' => (object) dgn_subject_grades( $s ), // μάθημα => τάξεις (όσα δεν αναφέρονται: όλες)
+		'clsGrades'  => (object) array_combine( dgn_classes( $s ), array_map( 'dgn_class_grade', dgn_classes( $s ) ) ),
 		'holidays'   => (object) dgn_holidays( $s ),
 		'weeklyMax'  => max( 1, (int) $s['weekly_max'] ),
 		'publicView' => (bool) $s['public_view'],

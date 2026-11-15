@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       Exams Planner
- * Description:       Δήλωση διαγωνισμάτων ανά τμήμα με αυτόματο έλεγχο κανόνων. Προσοχή: η ΔΙΑΓΡΑΦΗ του πρόσθετου σβήνει ΟΛΑ τα δεδομένα (δηλώσεις, ιστορικό, ρυθμίσεις). Η απενεργοποίηση και η αναβάθμιση όχι.
- * Version:           1.9.85
+ * Description:       Δήλωση διαγωνισμάτων ανά τμήμα με αυτόματο έλεγχο κανόνων. Η διαγραφή του πρόσθετου δεν σβήνει τα δεδομένα (δηλώσεις, ιστορικό, ρυθμίσεις), εκτός αν το επιλέξετε στις Ρυθμίσεις.
+ * Version:           1.10.3
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            5ο Γυμνάσιο Χανίων
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DGN_VERSION', '1.9.85' );
+define( 'DGN_VERSION', '1.10.3' );
 define( 'DGN_DB_VERSION', '1' );
 define( 'DGN_FILE', __FILE__ );
 define( 'DGN_DIR', plugin_dir_path( __FILE__ ) );

@@ -14,6 +14,7 @@ function dgn_default_settings() {
 		'school_name' => '', // κενό = το όνομα του ιστότοπου
 		'classes'     => "Α1\nΑ2\nΑ3\nΑ4\nΑ5\nΒ1\nΒ2\nΒ3\nΒ4\nΓ1\nΓ2\nΓ3\nΓ4\nΓ5",
 		'subjects'    => implode( "\n", array(
+			// Τάξεις (3η στήλη) μόνο όπου το μάθημα δεν διδάσκεται σε όλες· ωρολόγιο πρόγραμμα Γυμνασίου, ΦΕΚ Β΄ 2132/09-04-2026.
 			'Αρχαία Ελληνική Γλώσσα | ΑΡΧ',
 			'Αρχαία Ελληνικά Κείμενα από Μετάφραση | ΜΤΦ',
 			'Νέα Ελληνική Γλώσσα | ΝΕΓ',
@@ -22,17 +23,17 @@ function dgn_default_settings() {
 			'Θρησκευτικά | ΘΡΗ',
 			'Μαθηματικά | ΜΑΘ',
 			'Φυσική | ΦΥΣ',
-			'Χημεία | ΧΗΜ',
+			'Χημεία | ΧΗΜ | Β, Γ',
 			'Βιολογία | ΒΙΟ',
-			'Γεωγραφία | ΓΕΩ',
+			'Γεωλογία-Γεωγραφία | ΓΕΩ | Α, Β',
 			'Αγγλικά | ΑΓΓ',
 			'Γαλλικά | ΓΑΛ',
 			'Γερμανικά | ΓΕΡ',
 			'Πληροφορική | ΠΛΗ',
 			'Τεχνολογία | ΤΕΧ',
-			'Κοινωνική και Πολιτική Αγωγή | ΚΠΑ',
-			'Οικονομικά | ΟΙΚΝ',
-			'Οικιακή Οικονομία | ΟΙΚ',
+			'Κοινωνική και Πολιτική Αγωγή | ΚΠΑ | Γ',
+			'Οικονομικά | ΟΙΚΝ | Γ',
+			'Οικιακή Οικονομία | ΟΙΚ | Α',
 		) ),
 		// Πανελλαδικές αργίες: συμπληρώνονται αυτόματα για κάθε σχολική χρονιά (βλ. dgn_national_holidays_text()).
 		'holidays'       => dgn_national_holidays_text( (int) substr( dgn_school_year()[0], 0, 4 ) ),
@@ -50,6 +51,7 @@ function dgn_default_settings() {
 		'code'        => dgn_generate_code(),
 		'code_ver'    => 1,
 		'public_view' => 1,
+		'uninstall_wipe' => 0, // 1 = η διαγραφή του πρόσθετου σβήνει και τα δεδομένα (βλ. uninstall.php)
 		// Λίστα καθηγητών για τη φόρμα δήλωσης. Κενή λίστα = ελεύθερο κείμενο.
 		'teachers'    => '',
 		'allow_past'  => 0,
@@ -212,16 +214,105 @@ function dgn_subjects( $s = null ) {
 	$s   = $s ? $s : dgn_settings();
 	$out = array();
 	foreach ( preg_split( '/\R/u', (string) $s['subjects'] ) as $line ) {
-		$parts = array_map( 'trim', explode( '|', $line, 2 ) );
-		$name  = $parts[0];
-		if ( '' === $name || mb_strlen( $name ) > 100 ) {
+		list( $name, $abbr ) = dgn_subject_line( $line );
+		if ( '' === $name ) {
 			continue;
 		}
-		$abbr         = isset( $parts[1] ) && '' !== $parts[1] ? $parts[1] : mb_strtoupper( mb_substr( $name, 0, 3 ) );
-		$out[ $name ] = mb_substr( $abbr, 0, 5 );
+		$out[ $name ] = $abbr;
 	}
 	return $out;
 }
+
+/**
+ * Μία γραμμή μαθήματος: «Όνομα | ΣΥΝΤ | Α, Β, Γ» (η 2η και η 3η στήλη είναι προαιρετικές).
+ *
+ * @return array{0:string,1:string,2:string} όνομα ('' = άκυρη γραμμή), συντομογραφία, κείμενο τάξεων
+ */
+function dgn_subject_line( $line ) {
+	$parts = array_map( 'trim', explode( '|', (string) $line, 3 ) );
+	$name  = $parts[0];
+	if ( '' === $name || mb_strlen( $name ) > 100 ) {
+		return array( '', '', '' );
+	}
+	$abbr = isset( $parts[1] ) && '' !== $parts[1] ? $parts[1] : mb_strtoupper( mb_substr( $name, 0, 3 ) );
+	return array( $name, mb_substr( $abbr, 0, 5 ), isset( $parts[2] ) ? $parts[2] : '' );
+}
+
+/** Ελληνικό κεφαλαίο χωρίς τόνο· τα λατινικά A, B (που μοιάζουν) γίνονται Α, Β. */
+function dgn_grade_char( $ch ) {
+	$ch = mb_strtoupper( $ch );
+	$ch = strtr( $ch, array( 'A' => 'Α', 'B' => 'Β', 'Ά' => 'Α', 'Έ' => 'Ε', 'Ή' => 'Η', 'Ί' => 'Ι', 'Ό' => 'Ο', 'Ύ' => 'Υ', 'Ώ' => 'Ω' ) );
+	return $ch;
+}
+
+/** Η τάξη ενός τμήματος = το πρώτο του γράμμα (Α1 → Α). '' αν δεν είναι ελληνικό γράμμα (τότε δεν γίνεται έλεγχος). */
+function dgn_class_grade( $cls ) {
+	$ch = dgn_grade_char( mb_substr( trim( (string) $cls ), 0, 1 ) );
+	return preg_match( '/^[Α-Ω]$/u', $ch ) ? $ch : '';
+}
+
+/**
+ * Τάξεις από την 3η στήλη: δέχεται «Α, Β, Γ», «Α Β Γ», «ΑΒΓ», «Α΄,Β΄», λατινικά A/B.
+ *
+ * @return array{0:string[],1:string[]} τάξεις (με αλφαβητική σειρά), χαρακτήρες που δεν αναγνωρίστηκαν
+ */
+function dgn_parse_grades( $text ) {
+	$grades = array();
+	$bad    = array();
+	$text   = preg_replace( '/[\s,;\/\-\.΄\'’`´]+/u', '', (string) $text );
+	foreach ( preg_split( '//u', $text, -1, PREG_SPLIT_NO_EMPTY ) as $ch ) {
+		$g = dgn_grade_char( $ch );
+		if ( preg_match( '/^[Α-Ω]$/u', $g ) ) {
+			$grades[ $g ] = true;
+		} else {
+			$bad[ $ch ] = true;
+		}
+	}
+	$grades = array_keys( $grades );
+	sort( $grades, SORT_STRING );
+	return array( $grades, array_keys( $bad ) );
+}
+
+/** Τάξεις ανά μάθημα: [όνομα => ['Β','Γ']]. Μάθημα χωρίς (έγκυρες) τάξεις δεν περιλαμβάνεται = όλες οι τάξεις. */
+function dgn_subject_grades( $s = null ) {
+	$s   = $s ? $s : dgn_settings();
+	$out = array();
+	foreach ( preg_split( '/\R/u', (string) $s['subjects'] ) as $line ) {
+		list( $name, , $gtext ) = dgn_subject_line( $line );
+		if ( '' === $name ) {
+			continue;
+		}
+		list( $grades ) = dgn_parse_grades( $gtext );
+		if ( $grades ) {
+			$out[ $name ] = $grades;
+		} else {
+			unset( $out[ $name ] );
+		}
+	}
+	return $out;
+}
+
+/** Επιτρέπεται το μάθημα στο τμήμα; (χωρίς τάξεις στο μάθημα ή τμήμα χωρίς ελληνικό πρώτο γράμμα: πάντα ναι) */
+function dgn_subject_allowed( $subject, $cls, $s = null ) {
+	$map = dgn_subject_grades( $s );
+	$g   = dgn_class_grade( $cls );
+	return ! isset( $map[ $subject ] ) || '' === $g || in_array( $g, $map[ $subject ], true );
+}
+
+/** Οι τάξεις του σχολείου, από τα τμήματα: ['Α','Β','Γ']. */
+function dgn_school_grades( $classes_text ) {
+	$out = array();
+	foreach ( preg_split( '/\R/u', (string) $classes_text ) as $c ) {
+		$g = dgn_class_grade( $c );
+		if ( '' !== $g ) {
+			$out[ $g ] = true;
+		}
+	}
+	$out = array_keys( $out );
+	sort( $out, SORT_STRING );
+	return $out;
+}
+
 
 /**
  * Αργίες ως [YYYY-MM-DD => όνομα]. Επιστρέφει και τις γραμμές που δεν αναγνωρίστηκαν.
@@ -363,7 +454,7 @@ function dgn_whoami( $request = null ) {
 	if ( $uid && current_user_can( 'manage_options' ) ) {
 		return array( 'level' => 'admin', 'user_id' => $uid, 'name' => wp_get_current_user()->display_name, 'uidh' => '' );
 	}
-	if ( 'users' === $s['access'] && $uid && current_user_can( 'read' ) ) {
+	if ( 'users' === $s['access'] && $uid && dgn_user_is_teacher() ) {
 		return array( 'level' => 'teacher', 'user_id' => $uid, 'name' => wp_get_current_user()->display_name, 'uidh' => '' );
 	}
 	if ( $request instanceof WP_REST_Request ) {
@@ -379,6 +470,28 @@ function dgn_whoami( $request = null ) {
 		}
 	}
 	return array( 'level' => 'public', 'user_id' => 0, 'name' => '', 'uidh' => '' );
+}
+
+/** Επιτρέπει το WordPress να φτιάχνει ο καθένας λογαριασμό μόνος του; (Ρυθμίσεις → Γενικά → Μέλη) */
+function dgn_open_registration() {
+	return (bool) get_option( 'users_can_register' );
+}
+
+/**
+ * Είσοδος «με λογαριασμό στην ιστοσελίδα»: μετράει ο συνδεδεμένος χρήστης ως καθηγητής;
+ * Κανονικά ναι, κάθε λογαριασμός. Όταν όμως η ιστοσελίδα επιτρέπει ελεύθερη εγγραφή, οποιοσδήποτε
+ * θα μπορούσε να φτιάξει λογαριασμό και να κάνει δηλώσεις. Τότε γίνονται δεκτοί μόνο λογαριασμοί με ρόλο
+ * που έδωσε ο διαχειριστής: με δικαίωμα σύνταξης (Συνεργάτης και πάνω) και όχι με τον ρόλο των νέων εγγραφών.
+ */
+function dgn_user_is_teacher() {
+	if ( ! current_user_can( 'read' ) ) {
+		return false;
+	}
+	if ( ! dgn_open_registration() ) {
+		return true;
+	}
+	$user = wp_get_current_user();
+	return current_user_can( 'edit_posts' ) && ! in_array( (string) get_option( 'default_role', 'subscriber' ), (array) $user->roles, true );
 }
 
 /* ---------- Είσοδος μέσω ΠΣΔ: υπογεγραμμένο διακριτικό ---------- */

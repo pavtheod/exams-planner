@@ -97,7 +97,7 @@ function dgn_admin_export() {
 	header( 'Content-Disposition: attachment; filename="' . $filename . '.csv"' );
 	$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
 	fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
-	fputcsv( $out, array( 'Ημερομηνία', 'Ημέρα', 'Τμήμα', 'Μάθημα', 'Εκπαιδευτικός', 'Δηλώθηκε' ), ';' );
+	fputcsv( $out, array( 'Ημερομηνία', 'Ημέρα', 'Τμήμα', 'Μάθημα', 'Καθηγητής', 'Δηλώθηκε' ), ';' );
 	foreach ( $data as $r ) {
 		fputcsv( $out, array( dgn_parse_date( $r['date'] )->format( 'd/m/Y' ), $r['day'], $r['cls'], $r['subject'], $r['teacher'], mysql2date( 'd/m/Y H:i', $r['created'] ) ), ';' );
 	}
@@ -133,7 +133,7 @@ function dgn_build_xlsx( array $data, $sheet_title ) {
 		array( 'Ημέρα', 13, 'text' ),
 		array( 'Τμήμα', 9, 'text' ),
 		array( 'Μάθημα', 32, 'text' ),
-		array( 'Εκπαιδευτικός', 22, 'text' ),
+		array( 'Καθηγητής', 22, 'text' ),
 		array( 'Δηλώθηκε', 17, 'datetime' ),
 	);
 	$rows = array();
@@ -274,7 +274,7 @@ function dgn_admin_export_log() {
 			array( 'Τμήμα', 9, 'text' ),
 			array( 'Ημ. διαγωνίσματος', 17, 'date' ),
 			array( 'Μάθημα', 30, 'text' ),
-			array( 'Εκπαιδευτικός', 22, 'text' ),
+			array( 'Καθηγητής', 22, 'text' ),
 			array( 'Από', 30, 'text' ),
 			array( 'IP', 16, 'text' ),
 		);
@@ -295,7 +295,7 @@ function dgn_admin_export_log() {
 	header( 'Content-Disposition: attachment; filename="' . $filename . '.csv"' );
 	$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
 	fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
-	fputcsv( $out, array( 'Πότε', 'Ενέργεια', 'Τμήμα', 'Ημ. διαγωνίσματος', 'Μάθημα', 'Εκπαιδευτικός', 'Από', 'IP' ), ';' );
+	fputcsv( $out, array( 'Πότε', 'Ενέργεια', 'Τμήμα', 'Ημ. διαγωνίσματος', 'Μάθημα', 'Καθηγητής', 'Από', 'IP' ), ';' );
 	foreach ( $rows as $r ) {
 		$r[0] = mysql2date( 'd/m/Y H:i', $r[0] );
 		$r[3] = mysql2date( 'd/m/Y', $r[3] );

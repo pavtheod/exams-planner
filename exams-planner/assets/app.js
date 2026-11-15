@@ -341,7 +341,7 @@
     state.filter = cfg.classes.indexOf(c) !== -1 ? c : '';
     state.calOpen = false;
     filterSel.value = state.filter;
-    if (f.cls && state.filter) f.cls.value = state.filter;
+    if (f.cls && state.filter) { f.cls.value = state.filter; fillSubjects(); }
     state.selected = null; state.flash = null; state.confirmDel = false; state.upcoming = null;
     render(); loadUpcoming();
   }
@@ -387,6 +387,10 @@
     filterHint.hidden = canWrite() || !!state.filter;
     legend.querySelector('.dgn-lg-soon').hidden = !((+cfg.minNotice || 0) > 0 && !isAdmin());
     applyCal();
+    if (!canWrite() && cfg.noRights) {
+      auth.appendChild(el('span', { class: 'dgn-hint', text: 'Ο λογαριασμός σας δεν έχει δικαίωμα να κάνει δηλώσεις. Απευθυνθείτε στη Διεύθυνση.' }));
+      return;
+    }
     if (!canWrite()) {
       auth.appendChild(el('a', { class: 'dgn-authbtn', href: SSO ? cfg.ssoLogin : (cfg.access === 'code' ? pageUrl('login') : cfg.loginUrl), text: 'Είσοδος καθηγητών' }));
       return;
@@ -405,9 +409,10 @@
       f.date.setAttribute('min', minD);
       f.date.setAttribute('max', cfg.syEnd);
     }
-    f.subj = el('select', { id: 'dgn-subj', required: true }, [el('option', { value: '', text: '— Επιλέξτε —' })]);
-    Object.keys(cfg.subjects).forEach(function (s) { f.subj.appendChild(el('option', { value: s, text: s })); });
-    f.teacherLabel = el('label', { for: 'dgn-teacher' }, ['Εκπαιδευτικός']);
+    f.subj = el('select', { id: 'dgn-subj', required: true });
+    f.cls.addEventListener('change', fillSubjects);
+    fillSubjects();
+    f.teacherLabel = el('label', { for: 'dgn-teacher' }, ['Επώνυμο']);
     setTeacherField();
     f.btn = el('button', { type: 'submit', class: 'dgn-primary', text: 'Δήλωση' });
     var form2 = el('form', { class: 'dgn-form', autocomplete: 'off', onsubmit: submit }, [
@@ -427,6 +432,22 @@
         (cfg.access === 'code' ? ' από την ίδια συσκευή,' : '') + ' μέχρι και την ημέρα του διαγωνίσματος.');
     }
     foot.appendChild(el('ul', { class: 'dgn-tips' }, tips.map(function (t) { return el('li', { text: t }); })));
+  }
+
+  /* Μενού «Μάθημα»: μόνο τα μαθήματα που διδάσκονται στην τάξη του τμήματος (3η στήλη στις Ρυθμίσεις). */
+  function subjectAllowed(s, c) {
+    var g = (cfg.clsGrades || {})[c] || '', list = (cfg.subjGrades || {})[s];
+    return !list || !g || list.indexOf(g) !== -1;
+  }
+  function fillSubjects() {
+    if (!f.subj || !f.cls) return;
+    var prev = f.subj.value, c = f.cls.value;
+    f.subj.textContent = '';
+    f.subj.appendChild(el('option', { value: '', text: '— Επιλέξτε —' }));
+    Object.keys(cfg.subjects).forEach(function (s) {
+      if (subjectAllowed(s, c)) f.subj.appendChild(el('option', { value: s, text: s }));
+    });
+    f.subj.value = prev && subjectAllowed(prev, c) ? prev : '';
   }
 
   /* Πεδίο «Εκπαιδευτικός» (επώνυμο): λίστα επιλογής όταν η Διεύθυνση έχει ορίσει καθηγητές, αλλιώς ελεύθερο κείμενο. */
@@ -606,7 +627,7 @@
     state.selected = key; state.flash = null; state.confirmDel = false;
     var toForm = !state.exams[key] && canWrite() && f.cls;
     if (toForm) {
-      f.cls.value = cls; f.date.value = ds; setMsg('');
+      f.cls.value = cls; fillSubjects(); f.date.value = ds; setMsg('');
       try { f.subj.focus({ preventScroll: true }); } catch (err) { f.subj.focus(); }
     }
     render();
@@ -751,8 +772,8 @@
 
   if (ssoError) {
     var SSO_ERR = {
-      role: 'Η είσοδος επιτρέπεται μόνο σε εκπαιδευτικούς. Ο λογαριασμός ΠΣΔ με τον οποίο συνδεθήκατε δεν είναι λογαριασμός εκπαιδευτικού.',
-      unit: 'Ο λογαριασμός σας στο ΠΣΔ δεν ανήκει σε εκπαιδευτικό αυτής της σχολικής μονάδας. Αν υπηρετείτε στο σχολείο, ενημερώστε τη Διεύθυνση.',
+      role: 'Η είσοδος επιτρέπεται μόνο σε καθηγητές. Ο λογαριασμός ΠΣΔ με τον οποίο συνδεθήκατε δεν είναι λογαριασμός καθηγητή.',
+      unit: 'Ο λογαριασμός σας στο ΠΣΔ δεν ανήκει σε καθηγητή αυτής της σχολικής μονάδας. Αν υπηρετείτε στο σχολείο, ενημερώστε τη Διεύθυνση.',
       nounit: 'Η είσοδος μέσω ΠΣΔ δεν έχει ολοκληρωθεί στις ρυθμίσεις (λείπει ο κωδικός σχολικής μονάδας). Ενημερώστε τη Διεύθυνση.',
       server: 'Η σύνδεση με το ΠΣΔ δεν ολοκληρώθηκε. Δοκιμάστε ξανά σε λίγο.'
     };

@@ -31,7 +31,7 @@ add_action( 'admin_post_dgn_clear_log', 'dgn_admin_clear_log' );
 add_action( 'admin_post_dgn_create_page', 'dgn_admin_create_page' );
 add_action( 'admin_post_dgn_fill_holidays', 'dgn_admin_fill_holidays' );
 
-/** «Συμπλήρωση πανελλαδικών αργιών»: ξαναγράφει το πεδίο με τις αργίες της τρέχουσας σχολικής χρονιάς. */
+/** «Επαναφορά πανελλαδικών αργιών»: ξαναγράφει το πεδίο με τις αργίες της τρέχουσας σχολικής χρονιάς. */
 function dgn_admin_fill_holidays() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_die( 'Δεν έχετε δικαίωμα.' );
@@ -96,8 +96,8 @@ function dgn_admin_save() {
 	$new['holidays_local'] = sanitize_textarea_field( isset( $in['holidays_local'] ) ? $in['holidays_local'] : '' );
 	$new['holidays_auto']  = empty( $in['holidays_auto'] ) ? 0 : 1;
 	$new['holidays_year']  = isset( $old['holidays_year'] ) ? (int) $old['holidays_year'] : (int) substr( dgn_school_year()[0], 0, 4 );
-	unset( $new['holidays_refreshed'], $new['holidays_eves_note'] );
-	$new['holidays_eves_done'] = 1;
+	unset( $new['holidays_refreshed'], $new['holidays_eves_note'], $new['subjects_grades_note'], $new['subjects_grades_done'] );
+	$new['holidays_eves_done']   = 1;
 	$new['weekly_max']  = min( 5, max( 1, (int) ( isset( $in['weekly_max'] ) ? $in['weekly_max'] : 3 ) ) );
 	$new['access']      = ( isset( $in['access'] ) && in_array( $in['access'], array( 'users', 'sso' ), true ) ) ? $in['access'] : 'code';
 	$new['sso_server']  = ( isset( $in['sso_server'] ) && 'test' === $in['sso_server'] ) ? 'test' : 'prod';
@@ -113,10 +113,13 @@ function dgn_admin_save() {
 	$new['school_name'] = sanitize_text_field( isset( $in['school_name'] ) ? $in['school_name'] : '' );
 	$new['teachers']    = sanitize_textarea_field( isset( $in['teachers'] ) ? $in['teachers'] : '' );
 	$new['public_view'] = empty( $in['public_view'] ) ? 0 : 1;
+	$new['uninstall_wipe'] = empty( $in['uninstall_wipe'] ) ? 0 : 1;
 	$new['allow_past']  = 0; // καταργήθηκε (1.9.80): οι καθηγητές δεν δηλώνουν περασμένες ημερομηνίες
 	$new['min_notice']  = min( 30, max( 0, (int) ( isset( $in['min_notice'] ) ? $in['min_notice'] : 0 ) ) );
 
-	$code = trim( sanitize_text_field( isset( $in['code'] ) ? $in['code'] : '' ) );
+	// Χωρίς sanitize_text_field: αφαιρεί σιωπηλά ακολουθίες όπως «%2a» και αλλάζει τον κωδικό.
+	// Ο κωδικός ελέγχεται με τους κανόνες του (μόνο εκτυπώσιμοι λατινικοί χαρακτήρες) και στην οθόνη περνά από esc_attr/esc_html.
+	$code = trim( isset( $in['code'] ) && is_string( $in['code'] ) ? $in['code'] : '' );
 	// Ο κωδικός ελέγχεται όταν αλλάζει, και όταν η είσοδος γίνεται «με κωδικό» ενώ πριν δεν ήταν.
 	$check = ( '' !== $code && $code !== $old['code'] ) ? $code : ( ( 'code' === $new['access'] && 'code' !== $old['access'] ) ? $old['code'] : null );
 	if ( null !== $check && dgn_code_problems( $check ) ) {
@@ -204,7 +207,7 @@ function dgn_admin_clear_log() {
 function dgn_admin_notice( $msg ) {
 	$map = array(
 		'saved'      => array( 'success', 'Οι ρυθμίσεις αποθηκεύτηκαν.' ),
-		'holfilled'  => array( 'success', 'Οι πανελλαδικές αργίες συμπληρώθηκαν για την τρέχουσα σχολική χρονιά.' ),
+		'holfilled'  => array( 'success', 'Οι πανελλαδικές αργίες επαναφέρθηκαν για την τρέχουσα σχολική χρονιά.' ),
 		'savedbad'   => array( 'warning', 'Οι ρυθμίσεις αποθηκεύτηκαν, αλλά κάποιες γραμμές στις αργίες δεν αναγνωρίστηκαν και αγνοούνται (δείτε παρακάτω).' ),
 		'noclasses'  => array( 'error', 'Δεν αποθηκεύτηκε: γράψτε τουλάχιστον ένα τμήμα.' ),
 		'nosubjects' => array( 'error', 'Δεν αποθηκεύτηκε: γράψτε τουλάχιστον ένα μάθημα.' ),
@@ -318,8 +321,15 @@ function dgn_admin_tab_settings() {
 		/* Ο κωδικός καθηγητών «ανήκει» στην τελευταία επιλογή από πάνω: μικρότερο κενό ανάμεσά τους. */
 		.dgn-settings tr.dgn-access-row > th, .dgn-settings tr.dgn-access-row > td { padding-bottom: 6px; }
 		.dgn-settings tr.dgn-code-row > th, .dgn-settings tr.dgn-code-row > td { padding-top: 6px; }
-		/* Ενότητα που δεν αφορά την τρέχουσα επιλογή «Ποιος κάνει δηλώσεις»: γκρι και ανενεργή. */
+		/* Γραμμή που δεν αφορά τον τρέχοντα «Τρόπο εισόδου»: γκρι και ανενεργή. */
 		.dgn-settings tr.dgn-off > th, .dgn-settings tr.dgn-off > td { opacity: .5; }
+		/* Καθηγητές με ΠΣΔ: γκρι όλα εκτός από το πλαίσιο που εξηγεί γιατί. */
+		.dgn-settings tr.dgn-teachers-row.dgn-off > td { opacity: 1; }
+		.dgn-settings tr.dgn-teachers-row.dgn-off > td > :not(.dgn-sso-note) { opacity: .5; }
+		/* Επικίνδυνη επιλογή (διαγραφή δεδομένων): πλαίσιο με κόκκινη γραμμή αριστερά, όπως το μπλε του ΠΣΔ. */
+		.dgn-danger { padding: 8px 12px; max-width: 640px; background: #fff; border-left: 4px solid #d63638; box-shadow: 0 1px 1px rgba(0,0,0,.08); }
+		.dgn-danger p.description { margin: 6px 0 0; }
+		.dgn-sso-note { margin: 12px 0 4px; padding: 8px 12px; max-width: 560px; background: #fff; border-left: 4px solid #72aee6; box-shadow: 0 1px 1px rgba(0,0,0,.04); }
 		/* Επιλογές μέσα στην ίδια γραμμή: η καθεμία χωριστά, με κενό ανάμεσα. */
 		.dgn-settings .dgn-opt { margin: 0 0 14px; }
 		.dgn-settings .dgn-opt:last-of-type { margin-bottom: 8px; }
@@ -331,11 +341,25 @@ function dgn_admin_tab_settings() {
 		.dgn-settings .dgn-strength { margin: 6px 0 4px; font-weight: 600; }
 		.dgn-settings .dgn-strength.ok { color: #00a32a; }
 		.dgn-settings .dgn-strength.bad { color: #d63638; }
+		/* Ενότητες (1.9.96): λευκά πλαίσια με αριθμό και τίτλο. */
+		.dgn-settings .dgn-sec { background: #fff; border: 1px solid #c3c4c7; margin: 18px 0; max-width: 1100px; }
+		.dgn-settings .dgn-sec-h { margin: 0; padding: 10px 16px; font-size: 15px; border-bottom: 1px solid #dcdcde; display: flex; align-items: center; gap: 10px; }
+		.dgn-settings .dgn-sec-h small { font-weight: 400; color: #646970; font-size: 12px; }
+		.dgn-settings .dgn-n { background: #2271b1; color: #fff; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex: none; }
+		.dgn-settings .dgn-sec .form-table { margin: 0; }
+		.dgn-settings .dgn-sec .form-table th { padding-left: 16px; }
+		.dgn-settings .dgn-sec .form-table tr + tr > th, .dgn-settings .dgn-sec .form-table tr + tr > td { border-top: 1px solid #f0f0f1; }
+		/* Όλες οι λίστες και τα πεδία κειμένου στο ίδιο πλάτος, όσο χρειάζεται για να χωράει μία γραμμή αργιών· στο κινητό όσο η οθόνη. */
+		.dgn-settings textarea.dgn-list, .dgn-settings input.regular-text { width: 31em; max-width: 100%; box-sizing: border-box; }
+		@media (max-width: 782px) { .dgn-settings textarea.dgn-list, .dgn-settings input.regular-text { width: 100%; } }
+		.dgn-settings details.dgn-notes summary { cursor: pointer; color: #2271b1; margin: 0 0 8px; }
 	</style>
 	<form class="dgn-settings" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 		<input type="hidden" name="action" value="dgn_save">
 		<?php wp_nonce_field( 'dgn_save' ); ?>
-		<table class="form-table" role="presentation">
+		<div class="dgn-sec">
+			<h2 class="dgn-sec-h"><span class="dgn-n">1</span>Σχολείο <small>τα βασικά στοιχεία του σχολείου σας</small></h2>
+			<table class="form-table" role="presentation">
 			<tr>
 				<th scope="row"><label for="dgn-school">Όνομα σχολείου</label></th>
 				<td>
@@ -343,12 +367,31 @@ function dgn_admin_tab_settings() {
 					<p class="description">Δεν εμφανίζεται στη σελίδα. Με αυτό το όνομα αποθηκεύει ο browser τον κωδικό των καθηγητών.</p>
 				</td>
 			</tr>
+			<tr>
+				<th scope="row"><label for="dgn-classes">Τμήματα</label></th>
+				<td><textarea id="dgn-classes" name="classes" rows="8" class="dgn-list"><?php echo esc_textarea( $s['classes'] ); ?></textarea>
+				<p class="description">Ένα ανά γραμμή, με τη σειρά που θέλετε να εμφανίζονται.</p></td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="dgn-subjects">Μαθήματα και τάξεις</label></th>
+				<td><textarea id="dgn-subjects" name="subjects" rows="12" class="dgn-list"><?php echo esc_textarea( $s['subjects'] ); ?></textarea>
+				<?php dgn_admin_subject_warnings( $s ); ?>
+				<p class="description">Ένα μάθημα ανά γραμμή, με τη συντομογραφία του (έως 5 γράμματα, φαίνεται στον πίνακα): <code>Μαθηματικά | ΜΑΘ</code>.<br>Αν ένα μάθημα διδάσκεται μόνο σε ορισμένες τάξεις, προσθέστε μία ακόμη κάθετο και τις τάξεις: <code>Χημεία | ΧΗΜ | Β, Γ</code>. Τότε το μάθημα εμφανίζεται μόνο στα τμήματα αυτών των τάξεων.</p></td>
+			</tr>
+			</table>
+		</div>
+		<div class="dgn-sec">
+			<h2 class="dgn-sec-h"><span class="dgn-n">2</span>Είσοδος καθηγητών <small>ποιοι και πώς κάνουν δηλώσεις</small></h2>
+			<table class="form-table" role="presentation">
 			<tr class="dgn-access-row">
-				<th scope="row">Ποιος κάνει δηλώσεις</th>
+				<th scope="row">Τρόπος εισόδου</th>
 				<td>
 					<fieldset>
-						<label><input type="radio" name="access" value="sso" <?php checked( $s['access'], 'sso' ); ?>> Με τον <strong>λογαριασμό ΠΣΔ (sch.gr)</strong>, μόνο εκπαιδευτικοί της σχολικής μονάδας με εγγραφή στο ΠΣΔ</label><br>
+						<label><input type="radio" name="access" value="sso" <?php checked( $s['access'], 'sso' ); ?>> Με τον <strong>λογαριασμό ΠΣΔ (sch.gr)</strong>, μόνο καθηγητές της σχολικής μονάδας με εγγραφή στο ΠΣΔ</label><br>
 						<label><input type="radio" name="access" value="users" <?php checked( $s['access'], 'users' ); ?>> Μόνο όσοι έχουν <strong>λογαριασμό στην ιστοσελίδα</strong> και έχουν συνδεθεί</label><br>
+						<?php if ( dgn_open_registration() ) : ?>
+							<div class="dgn-danger" style="margin:4px 0 8px 24px"><strong>Προσοχή:</strong> η ιστοσελίδα επιτρέπει σε οποιονδήποτε να φτιάξει λογαριασμό (Ρυθμίσεις → Γενικά → «Οποιοσδήποτε μπορεί να εγγραφεί»). Για ασφάλεια, με αυτόν τον τρόπο εισόδου δεν γίνονται δεκτοί ως καθηγητές οι λογαριασμοί με τον ρόλο των νέων εγγραφών (Συνδρομητής). Δώστε στους καθηγητές ρόλο Συνεργάτη ή ανώτερο, ή κλείστε την ελεύθερη εγγραφή.</div>
+						<?php endif; ?>
 						<label><input type="radio" name="access" value="code" <?php checked( $s['access'], 'code' ); ?>> Όποιος ξέρει τον <strong>κοινό κωδικό καθηγητών</strong></label>
 					</fieldset>
 				</td>
@@ -378,22 +421,27 @@ function dgn_admin_tab_settings() {
 					<input id="dgn-sso-units" name="sso_units" class="regular-text" value="<?php echo esc_attr( $s['sso_units'] ); ?>"></p>
 					<p class="dgn-group"><label for="dgn-sso-roles"><strong>Ρόλοι που επιτρέπονται</strong> (τιμές του umdobject)</label><br>
 					<input id="dgn-sso-roles" name="sso_roles" class="regular-text" value="<?php echo esc_attr( $s['sso_roles'] ); ?>"></p>
-					<div class="dgn-notes">
+					<details class="dgn-notes"><summary>Οδηγίες για την αίτηση στο ΠΣΔ</summary>
 						<p class="description">Στο ΠΣΔ ζητήστε τα attributes: <code>uid, sn, umdobject, edupersonorgunitdn:gsnunitcode:extended</code>.</p>
-						<p class="description">Οι απορρίψεις εισόδου (π.χ. μαθητής ή εκπαιδευτικός άλλου σχολείου) φαίνονται στο «Ιστορικό» με τον ρόλο και τους κωδικούς μονάδας, χωρίς ονόματα.</p>
+						<p class="description">Οι απορρίψεις εισόδου (π.χ. μαθητής ή καθηγητής άλλου σχολείου) φαίνονται στο «Ιστορικό» με τον ρόλο και τους κωδικούς μονάδας, χωρίς ονόματα.</p>
 						<p class="description">Διεύθυνση που θα στέλνεται στο ΠΣΔ: <code><?php echo esc_html( dgn_sso_service_url( $s ) ); ?></code></p>
-					</div>
+					</details>
 				</td>
 			</tr>
-			<tr>
-				<th scope="row"><label for="dgn-max">Μέγιστα διαγωνίσματα την εβδομάδα</label></th>
-				<td><input id="dgn-max" name="weekly_max" type="number" min="1" max="5" value="<?php echo (int) $s['weekly_max']; ?>" class="small-text"> ανά τμήμα (πάντα έως 1 την ημέρα)</td>
+			<tr class="dgn-teachers-row">
+				<th scope="row"><label for="dgn-teachers">Καθηγητές</label></th>
+				<td><textarea id="dgn-teachers" name="teachers" rows="10" class="dgn-list"><?php echo esc_textarea( $s['teachers'] ); ?></textarea>
+				<p style="margin:2px 0 14px;color:#646970"><?php echo count( dgn_teachers( $s ) ); ?> καθηγητές στη λίστα.</p>
+				<p class="description"><strong>Η παραπάνω λίστα γίνεται ενεργή μόνο όταν επιλέξετε είσοδο καθηγητών με λογαριασμούς WordPress ή με κοινό κωδικό.</strong></p><ul class="description" style="list-style:disc;margin:4px 0 0 18px;color:#646970"><li>Ένα επώνυμο ανά γραμμή, όπως θέλετε να εμφανίζεται (π.χ. <code>ΠΑΠΑΔΑΚΗΣ</code> ή <code>ΠΑΠΑΔΑΚΗΣ Γ.</code> αν υπάρχουν ίδια επώνυμα).</li><li><strong>Με επώνυμα στην παραπάνω λίστα:</strong> οι καθηγητές διαλέγουν υποχρεωτικά το επώνυμό τους από τη λίστα.</li><li><strong>Χωρίς κανένα επώνυμο:</strong> οι καθηγητές γράφουν ελεύθερα το επώνυμό τους (προτείνεται η λίστα, για ομοιόμορφα ονόματα).</li><li>Η λίστα εμφανίζεται μόνο στους καθηγητές που έχουν συνδεθεί, ποτέ στους επισκέπτες.</li></ul><p class="dgn-sso-note" hidden>Έχετε επιλέξει είσοδο μέσω ΠΣΔ: το επώνυμο του καθηγητή αντλείται αυτόματα από τον λογαριασμό του, οπότε η λίστα δεν χρησιμοποιείται.</p></td>
 			</tr>
+			</table>
+		</div>
+		<div class="dgn-sec">
+			<h2 class="dgn-sec-h"><span class="dgn-n">3</span>Κανόνες δηλώσεων <small>τι επιτρέπεται και ποιος βλέπει τον πίνακα</small></h2>
+			<table class="form-table" role="presentation">
 			<tr>
-				<th scope="row">Προβολή</th>
-				<td>
-					<label><input type="checkbox" name="public_view" value="1" <?php checked( $s['public_view'], 1 ); ?>> Μαθητές και γονείς βλέπουν τον πίνακα (χωρίς ονόματα καθηγητών, χωρίς δυνατότητα αλλαγών)</label>
-				</td>
+				<th scope="row"><label for="dgn-max">Διαγωνίσματα ανά εβδομάδα</label></th>
+				<td><input id="dgn-max" name="weekly_max" type="number" min="1" max="5" value="<?php echo (int) $s['weekly_max']; ?>" class="small-text"> ανά τμήμα. Σύμφωνα με το ισχύον πλαίσιο αξιολόγησης των μαθητών, έως 1 την ημέρα και έως 3 την εβδομάδα.</td>
 			</tr>
 			<tr>
 				<th scope="row">Προθεσμίες δήλωσης</th>
@@ -403,40 +451,55 @@ function dgn_admin_tab_settings() {
 				</td>
 			</tr>
 			<tr>
-				<th scope="row"><label for="dgn-classes">Τμήματα</label></th>
-				<td><textarea id="dgn-classes" name="classes" rows="8" cols="20"><?php echo esc_textarea( $s['classes'] ); ?></textarea>
-				<p class="description">Ένα ανά γραμμή, με τη σειρά που θέλετε να εμφανίζονται.</p></td>
-			</tr>
-			<tr>
-				<th scope="row"><label for="dgn-teachers">Εκπαιδευτικοί</label></th>
-				<td><textarea id="dgn-teachers" name="teachers" rows="10" cols="30"><?php echo esc_textarea( $s['teachers'] ); ?></textarea>
-				<p class="description">Ένας ανά γραμμή, όπως θέλετε να φαίνεται (π.χ. <code>ΠΑΠΑΔΑΚΗΣ</code> ή <code>ΠΑΠΑΔΑΚΗΣ Γ.</code> αν υπάρχουν ίδια επώνυμα). Εμφανίζονται με αλφαβητική σειρά στη φόρμα δήλωσης, μόνο σε όσους έχουν μπει με τον κωδικό. Αν μείνει κενό, οι εκπαιδευτικοί γράφουν ελεύθερα το επώνυμό τους.<br><?php echo count( dgn_teachers( $s ) ); ?> εκπαιδευτικοί στη λίστα.</p></td>
-			</tr>
-			<tr>
-				<th scope="row"><label for="dgn-subjects">Μαθήματα</label></th>
-				<td><textarea id="dgn-subjects" name="subjects" rows="10" cols="50"><?php echo esc_textarea( $s['subjects'] ); ?></textarea>
-				<p class="description">Ένα ανά γραμμή: <code>Όνομα | ΣΥΝΤΟΜΟΓΡΑΦΙΑ</code>, π.χ. <code>Θρησκευτικά | ΘΡΗ</code>. Η συντομογραφία (έως 5 γράμματα) φαίνεται στον πίνακα.</p></td>
-			</tr>
-			<tr>
-				<th scope="row"><label for="dgn-holidays">Αργίες</label></th>
+				<th scope="row">Προβολή</th>
 				<td>
-					<div style="margin:0 0 6px"><strong>Πανελλαδικές αργίες <?php echo (int) $sy . '–' . ( (int) $sy + 1 ); ?></strong></div>
-					<textarea id="dgn-holidays" name="holidays" rows="9" cols="50" class="code"><?php echo esc_textarea( $s['holidays'] ); ?></textarea>
+					<label><input type="checkbox" name="public_view" value="1" <?php checked( $s['public_view'], 1 ); ?>> Μαθητές και γονείς βλέπουν τον πίνακα (χωρίς ονόματα καθηγητών, χωρίς δυνατότητα αλλαγών)</label>
+				</td>
+			</tr>
+			</table>
+		</div>
+		<div class="dgn-sec">
+			<h2 class="dgn-sec-h"><span class="dgn-n">4</span>Αργίες <small>ημέρες χωρίς διαγωνίσματα</small></h2>
+			<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><label for="dgn-holidays">Πανελλαδικές αργίες <?php echo (int) $sy . '–' . ( (int) $sy + 1 ); ?></label></th>
+				<td>
+					<textarea id="dgn-holidays" name="holidays" rows="9" class="code dgn-list"><?php echo esc_textarea( $s['holidays'] ); ?></textarea>
 					<?php if ( $bad ) : ?>
 						<p style="color:#b32d2e"><strong>Δεν αναγνωρίστηκαν:</strong> <?php echo esc_html( implode( ' · ', $bad ) ); ?></p>
 					<?php endif; ?>
 					<label style="display:block;margin:8px 0 4px"><input type="checkbox" name="holidays_auto" value="1" <?php checked( ! empty( $s['holidays_auto'] ) ); ?>> Αυτόματη ενημέρωση των πανελλαδικών αργιών κάθε σχολική χρονιά</label>
 					<p class="description" style="margin:0 0 8px">Κάθε νέα σχολική χρονιά το πεδίο ξαναγεμίζει μόνο του με τις αργίες της. Μέσα στη χρονιά μπορείτε να το διορθώσετε, π.χ. αν μετατεθεί η Πρωτομαγιά. Βγάλτε το τικ αν θέλετε να το συμπληρώνετε μόνοι σας.</p>
-					<p style="margin:0 0 18px"><button type="submit" form="dgn-fill-holidays" class="button" onclick="return confirm('Το πεδίο «Πανελλαδικές αργίες» θα αντικατασταθεί με τις αργίες του <?php echo (int) $sy . '–' . ( (int) $sy + 1 ); ?>. Συνέχεια;');">Συμπλήρωση πανελλαδικών αργιών</button> <span style="color:#646970">αντικαθιστά το πεδίο με τις αργίες της τρέχουσας χρονιάς</span></p>
-					<div style="margin:0 0 6px"><label for="dgn-holidays-local"><strong>Τοπικές αργίες</strong></label> <span style="color:#646970">(του σχολείου ή της πόλης σας· δεν αλλάζουν αυτόματα)</span></div>
-					<textarea id="dgn-holidays-local" name="holidays_local" rows="3" cols="50" class="code"><?php echo esc_textarea( $s['holidays_local'] ); ?></textarea>
+					<p style="margin:0"><button type="submit" form="dgn-fill-holidays" class="button" onclick="return confirm('Το πεδίο «Πανελλαδικές αργίες» θα αντικατασταθεί με τις αργίες του <?php echo (int) $sy . '–' . ( (int) $sy + 1 ); ?>. Συνέχεια;');">Επαναφορά πανελλαδικών αργιών</button> <span style="color:#646970">ξαναγράφει το πεδίο με τις αργίες του <?php echo (int) $sy . '–' . ( (int) $sy + 1 ); ?>, αν το έχετε αλλάξει ή σβήσει κατά λάθος</span></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="dgn-holidays-local">Τοπικές αργίες</label></th>
+				<td>
+					<textarea id="dgn-holidays-local" name="holidays_local" rows="3" class="code dgn-list"><?php echo esc_textarea( $s['holidays_local'] ); ?></textarea>
 					<?php if ( $bad_local ) : ?>
 						<p style="color:#b32d2e"><strong>Δεν αναγνωρίστηκαν:</strong> <?php echo esc_html( implode( ' · ', $bad_local ) ); ?></p>
 					<?php endif; ?>
-					<p class="description">Μία ανά γραμμή. Χωρίς έτος ισχύει κάθε χρόνο: <code>11-08 | Πολιούχος</code>. Με έτος ισχύει μόνο τότε: <code>2027-05-20 έως 2027-05-21 | Επέτειος</code>. Σε όλες τις αργίες δεν γίνονται δηλώσεις.</p>
+					<p class="description">Του σχολείου ή της πόλης σας, μία ανά γραμμή. Χωρίς έτος ισχύει κάθε χρόνο: <code>11-08 | Πολιούχος</code>. Με έτος ισχύει μόνο τότε: <code>2027-05-20 έως 2027-05-21 | Επέτειος</code>. Σε όλες τις αργίες δεν γίνονται δηλώσεις.</p>
 				</td>
 			</tr>
-		</table>
+			</table>
+		</div>
+		<div class="dgn-sec">
+			<h2 class="dgn-sec-h"><span class="dgn-n">5</span>Δεδομένα <small>τι γίνεται με τις δηλώσεις και τις ρυθμίσεις</small></h2>
+			<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row">Διαγραφή πρόσθετου</th>
+				<td>
+					<div class="dgn-danger">
+						<label><input type="checkbox" name="uninstall_wipe" value="1" <?php checked( ! empty( $s['uninstall_wipe'] ) ); ?>> Να σβήνονται όλα τα δεδομένα όταν διαγράφεται το πρόσθετο</label>
+						<p class="description">Αν μείνει χωρίς τικ (προτείνεται), τα δεδομένα του πρόσθετου (δηλώσεις, ιστορικό και ρυθμίσεις) παραμένουν στη βάση δεδομένων. Αν το πρόσθετο διαγραφεί και εγκατασταθεί ξανά, όλα τα δεδομένα θα είναι διαθέσιμα όπως πριν.</p>
+						<p class="description">Βάλτε τικ μόνο αν θέλετε, κατά τη διαγραφή του πρόσθετου, να διαγραφούν οριστικά όλα τα δεδομένα του.</p>
+					</div>
+				</td>
+			</tr>
+			</table>
+		</div>
 		<?php submit_button( 'Αποθήκευση' ); ?>
 	</form>
 	<form id="dgn-fill-holidays" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
@@ -447,16 +510,20 @@ function dgn_admin_tab_settings() {
 	( function () {
 		var form = document.querySelector( 'form.dgn-settings' );
 		if ( ! form ) return;
-		var rows = { code: form.querySelector( 'tr.dgn-code-row' ), sso: form.querySelector( 'tr.dgn-sso-row' ) };
+		// Κάθε γραμμή είναι ενεργή μόνο για τον τρόπο εισόδου της· οι Εκπαιδευτικοί για όλους εκτός από ΠΣΔ.
+		var rows = { code: form.querySelector( 'tr.dgn-code-row' ), sso: form.querySelector( 'tr.dgn-sso-row' ), teachers: form.querySelector( 'tr.dgn-teachers-row' ) };
 		function sync() {
 			var cur = ( form.querySelector( 'input[name=access]:checked' ) || {} ).value;
 			Object.keys( rows ).forEach( function ( k ) {
 				var row = rows[ k ];
 				if ( ! row ) return;
-				var off = cur !== k;
+				var off = 'teachers' === k ? 'sso' === cur : cur !== k;
 				row.classList.toggle( 'dgn-off', off );
 				row.querySelectorAll( 'input, textarea, select' ).forEach( function ( el ) { el.disabled = off; } );
 			} );
+			var note = form.querySelector( '.dgn-sso-note' );
+			if ( note ) note.hidden = 'sso' !== cur;
+			strength();
 		}
 		form.querySelectorAll( 'input[name=access]' ).forEach( function ( r ) { r.addEventListener( 'change', sync ); } );
 		// Τα ανενεργά πεδία δεν στέλνονται: τα ενεργοποιούμε πριν την αποθήκευση, ώστε να μη χαθούν οι τιμές τους.
@@ -468,6 +535,7 @@ function dgn_admin_tab_settings() {
 		var codeIn = form.querySelector( '#dgn-code' ), codeOut = form.querySelector( '#dgn-code-strength' );
 		function strength() {
 			if ( ! codeIn || ! codeOut ) return;
+			codeOut.hidden = codeIn.disabled; // ανενεργός κωδικός (άλλος τρόπος εισόδου): χωρίς ένδειξη
 			var v = codeIn.value.trim(), p = [];
 			if ( v && ! /^[\x21-\x7E]+$/.test( v ) ) p.push( 'μόνο λατινικοί χαρακτήρες, αριθμοί και σύμβολα, χωρίς κενά' );
 			if ( v.length < 8 ) p.push( 'τουλάχιστον 8 χαρακτήρες' );
@@ -513,7 +581,7 @@ function dgn_admin_tab_exams() {
 	if ( ! $rows ) {
 		echo '<p>Δεν υπάρχουν δηλώσεις από σήμερα και μετά.</p>';
 	} else {
-		echo '<table class="widefat striped" style="max-width:900px"><thead><tr><th>Ημερομηνία</th><th>Τμήμα</th><th>Μάθημα</th><th>Εκπαιδευτικός</th><th>Δηλώθηκε</th><th></th></tr></thead><tbody>';
+		echo '<table class="widefat striped" style="max-width:900px"><thead><tr><th>Ημερομηνία</th><th>Τμήμα</th><th>Μάθημα</th><th>Καθηγητής</th><th>Δηλώθηκε</th><th></th></tr></thead><tbody>';
 		foreach ( $rows as $r ) {
 			$d   = dgn_parse_date( $r['exam_date'] );
 			$del = wp_nonce_url( admin_url( 'admin-post.php?action=dgn_delete&id=' . (int) $r['id'] ), 'dgn_delete_' . (int) $r['id'] );
@@ -563,7 +631,7 @@ function dgn_admin_tab_log() {
 		echo '<p>Δεν υπάρχουν ακόμη ενέργειες.</p>';
 		return;
 	}
-	echo '<table class="widefat striped" style="max-width:1100px"><thead><tr><th>Πότε</th><th>Ενέργεια</th><th>Τμήμα</th><th>Ημ. διαγωνίσματος</th><th>Μάθημα</th><th>Εκπαιδευτικός</th><th>Από</th><th>IP</th></tr></thead><tbody>';
+	echo '<table class="widefat striped" style="max-width:1100px"><thead><tr><th>Πότε</th><th>Ενέργεια</th><th>Τμήμα</th><th>Ημ. διαγωνίσματος</th><th>Μάθημα</th><th>Καθηγητής</th><th>Από</th><th>IP</th></tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		printf(
 			'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
@@ -588,4 +656,65 @@ function dgn_admin_tab_log() {
 		<?php submit_button( 'Διαγραφή ιστορικού', 'delete', 'submit', false ); ?>
 	</form>
 	<?php
+}
+
+/**
+ * Προειδοποιήσεις κάτω από τα «Μαθήματα»: τάξεις που δεν αντιστοιχούν σε τμήμα, τμήματα χωρίς κανένα μάθημα,
+ * και δηλώσεις της φετινής χρονιάς σε μάθημα που δεν διδάσκεται στην τάξη του τμήματος.
+ */
+function dgn_admin_subject_warnings( $s ) {
+	global $wpdb;
+	$school = dgn_school_grades( $s['classes'] );
+	$warn   = array();
+	$odd    = array();
+	foreach ( preg_split( '/\R/u', (string) $s['subjects'] ) as $line ) {
+		list( $name, , $gtext ) = dgn_subject_line( $line );
+		if ( '' === $name || '' === $gtext ) {
+			continue;
+		}
+		list( $grades, $bad ) = dgn_parse_grades( $gtext );
+		if ( $bad ) {
+			$odd[] = $name . ': δεν αναγνωρίστηκε «' . implode( '', $bad ) . '»';
+		}
+		$none = array_diff( $grades, $school );
+		if ( $grades && $school && $none ) {
+			$odd[] = $name . ': δεν υπάρχει τμήμα της ' . implode( ', ', $none ) . ' τάξης';
+		}
+	}
+	if ( $odd ) {
+		$warn[] = '<strong>Ελέγξτε τις τάξεις:</strong> ' . esc_html( implode( ' · ', $odd ) );
+	}
+	$empty = array();
+	foreach ( dgn_classes( $s ) as $c ) {
+		$ok = false;
+		foreach ( array_keys( dgn_subjects( $s ) ) as $subj ) {
+			if ( dgn_subject_allowed( $subj, $c, $s ) ) {
+				$ok = true;
+				break;
+			}
+		}
+		if ( ! $ok ) {
+			$empty[] = $c;
+		}
+	}
+	if ( $empty ) {
+		$warn[] = '<strong>Τμήματα χωρίς κανένα μάθημα:</strong> ' . esc_html( implode( ', ', $empty ) );
+	}
+	if ( dgn_subject_grades( $s ) ) {
+		$t    = dgn_table( 'exams' );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT cls, exam_date, subject FROM $t WHERE exam_date >= %s ORDER BY exam_date, cls", dgn_school_year()[0] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$mis  = array();
+		foreach ( (array) $rows as $r ) {
+			if ( isset( dgn_subjects( $s )[ $r->subject ] ) && ! dgn_subject_allowed( $r->subject, $r->cls, $s ) ) {
+				$mis[] = date_i18n( 'j/n', strtotime( $r->exam_date ) ) . ' ' . $r->cls . ' ' . $r->subject;
+			}
+		}
+		if ( $mis ) {
+			$more   = count( $mis ) > 15 ? ' κ.ά. (' . count( $mis ) . ' συνολικά)' : '';
+			$warn[] = '<strong>Δηλώσεις σε μάθημα που δεν διδάσκεται στην τάξη του τμήματος:</strong> ' . esc_html( implode( ' · ', array_slice( $mis, 0, 15 ) ) . $more ) . '. Διορθώστε τις από τις <a href="' . esc_url( dgn_admin_url( 'exams' ) ) . '">Δηλώσεις</a>.';
+		}
+	}
+	foreach ( $warn as $w ) {
+		echo '<p style="color:#996800;margin:6px 0 0">' . $w . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above
+	}
 }

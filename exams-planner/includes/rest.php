@@ -147,6 +147,9 @@ function dgn_rest_create( WP_REST_Request $r ) {
 	if ( ! array_key_exists( $subject, dgn_subjects( $s ) ) ) {
 		return dgn_err( 'dgn_subject', 'Επιλέξτε μάθημα από τη λίστα.', 400 );
 	}
+	if ( ! dgn_subject_allowed( $subject, $cls, $s ) ) {
+		return dgn_err( 'dgn_grade', 'Το μάθημα «' . $subject . '» δεν διδάσκεται στην ' . dgn_class_grade( $cls ) . '΄ τάξη.', 400 );
+	}
 	$teacher = trim( sanitize_text_field( (string) $r->get_param( 'teacher' ) ) );
 	if ( '' === $teacher && $who['user_id'] ) {
 		$teacher = $who['name'];
