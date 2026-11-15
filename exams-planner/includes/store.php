@@ -65,6 +65,8 @@ function dgn_log_prune() {
  * Το κλείδωμα ανά τμήμα+εβδομάδα (GET_LOCK) αποτρέπει δύο ταυτόχρονες δηλώσεις
  * να περάσουν μαζί το όριο της εβδομάδας. Το μοναδικό κλειδί (cls, exam_date)
  * εγγυάται μία δήλωση την ημέρα ακόμη και χωρίς κλείδωμα.
+ * Αν το κλείδωμα δεν δοθεί (όχι «απασχολημένο», αλλά σφάλμα), το όριο της εβδομάδας
+ * ελέγχεται ξανά μετά την καταχώριση.
  *
  * @return array|WP_Error Η νέα δήλωση.
  */
@@ -126,6 +128,20 @@ function dgn_exam_create( $cls, DateTimeImmutable $date, $subject, $teacher, $us
 			return new WP_Error( 'dgn_day_taken', sprintf( 'Το %s μόλις δηλώθηκε από άλλον συνάδελφο για αυτή την ημέρα.', $cls ), array( 'status' => 409 ) );
 		}
 		$row['id'] = (int) $wpdb->insert_id;
+		if ( '1' !== $locked ) {
+			// Το κλείδωμα δεν δόθηκε (σφάλμα της βάσης ή διακομιστής χωρίς GET_LOCK): η δήλωση δεν μπλοκάρεται,
+			// αλλά το όριο της εβδομάδας ελέγχεται ξανά μετά την καταχώριση. Αν πρόλαβαν ήδη $max παλαιότερες
+			// δηλώσεις (μικρότερο id), η δική μας είναι η περισσευούμενη και αφαιρείται.
+			$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $t WHERE cls = %s AND week_start = %s AND id < %d", $cls, $week, $row['id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			if ( $before >= $max ) {
+				$wpdb->delete( $t, array( 'id' => $row['id'] ), array( '%d' ) );
+				return new WP_Error(
+					'dgn_week_full',
+					sprintf( 'Το %s έχει ήδη %d διαγωνίσματα αυτή την εβδομάδα. Διαλέξτε άλλη εβδομάδα.', $cls, $before ),
+					array( 'status' => 409 )
+				);
+			}
+		}
 		dgn_log( 'δήλωση', $row, $actor );
 		return $row;
 	} finally {

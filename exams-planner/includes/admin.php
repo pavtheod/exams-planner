@@ -581,7 +581,8 @@ function dgn_admin_tab_exams() {
 	if ( ! $rows ) {
 		echo '<p>Δεν υπάρχουν δηλώσεις από σήμερα και μετά.</p>';
 	} else {
-		echo '<table class="widefat striped" style="max-width:900px"><thead><tr><th>Ημερομηνία</th><th>Τμήμα</th><th>Μάθημα</th><th>Καθηγητής</th><th>Δηλώθηκε</th><th></th></tr></thead><tbody>';
+		// Σε στενή οθόνη (κινητό) ο πίνακας κυλά οριζόντια μέσα στο πλαίσιό του αντί να στριμώχνεται.
+		echo '<div style="max-width:900px;overflow-x:auto"><table class="widefat striped" style="min-width:640px"><thead><tr><th>Ημερομηνία</th><th>Τμήμα</th><th>Μάθημα</th><th>Καθηγητής</th><th>Δηλώθηκε</th><th></th></tr></thead><tbody>';
 		foreach ( $rows as $r ) {
 			$d   = dgn_parse_date( $r['exam_date'] );
 			$del = wp_nonce_url( admin_url( 'admin-post.php?action=dgn_delete&id=' . (int) $r['id'] ), 'dgn_delete_' . (int) $r['id'] );
@@ -596,7 +597,7 @@ function dgn_admin_tab_exams() {
 				esc_url( $del )
 			);
 		}
-		echo '</tbody></table>';
+		echo '</tbody></table></div>';
 	}
 	?>
 	<h2 style="margin-top:32px">Νέα σχολική χρονιά</h2>
@@ -631,7 +632,7 @@ function dgn_admin_tab_log() {
 		echo '<p>Δεν υπάρχουν ακόμη ενέργειες.</p>';
 		return;
 	}
-	echo '<table class="widefat striped" style="max-width:1100px"><thead><tr><th>Πότε</th><th>Ενέργεια</th><th>Τμήμα</th><th>Ημ. διαγωνίσματος</th><th>Μάθημα</th><th>Καθηγητής</th><th>Από</th><th>IP</th></tr></thead><tbody>';
+	echo '<div style="max-width:1100px;overflow-x:auto"><table class="widefat striped" style="min-width:860px"><thead><tr><th>Πότε</th><th>Ενέργεια</th><th>Τμήμα</th><th>Ημ. διαγωνίσματος</th><th>Μάθημα</th><th>Καθηγητής</th><th>Από</th><th>IP</th></tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		printf(
 			'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
@@ -645,7 +646,7 @@ function dgn_admin_tab_log() {
 			esc_html( $r['ip'] )
 		);
 	}
-	echo '</tbody></table>';
+	echo '</tbody></table></div>';
 	?>
 	<h2 style="margin-top:32px">Διαγραφή ιστορικού</h2>
 	<p>Διαγράφει όλες τις εγγραφές του ιστορικού (π.χ. στην αρχή της σχολικής χρονιάς). Οι δηλώσεις δεν επηρεάζονται. Αν θέλετε αρχείο, κάντε πρώτα «Εξαγωγή ιστορικού».</p>
