@@ -233,7 +233,7 @@ body.dgn-page h1.dgn-centered-title {
    Χωρίς <article> (άλλο θέμα) μένει στη ροή, δεξιά, χωρίς περιθώριο. Χρώμα = --dgn-muted, ο σύνδεσμος γαλάζιος.
    Σε στενή οθόνη (κινητό) η γραμμή μπαίνει στη ροή και αλλάζει γραμμή, ώστε να μη κόβεται ούτε να καλύπτει τον πίνακα. */
 .dgn-credit {
-  font-size: 10px !important;
+  font-size: 9px !important;
   line-height: 1.4 !important;
   margin: 0 !important;
   padding: 0 !important;
