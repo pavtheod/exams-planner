@@ -103,5 +103,5 @@ function dgn_shortcode() {
 	// Υποσέλιδο «Δημιουργία: … · vX»: έξω από το #dgn-app (το script ξαναγράφει το περιεχόμενό του).
 	// Το script το μεταφέρει στην κάτω δεξιά γωνία του <article> της σελίδας (π.χ. Astra), χωρίς να προσθέτει κενό.
 	return '<div id="dgn-app" class="dgn-app alignwide"><noscript>Για τη σελίδα δηλώσεων χρειάζεται JavaScript.</noscript><p class="dgn-loading">Φόρτωση…</p></div>'
-		. '<p class="dgn-credit">Δημιουργία: 5ο Γυμνάσιο Χανίων · v' . esc_html( DGN_VERSION ) . '</p>';
+		. '<p class="dgn-credit">Δημιουργία: 5ο Γυμνάσιο Χανίων · Ελεύθερο λογισμικό · <a href="https://github.com/pavtheod/exams-planner" target="_blank" rel="noopener noreferrer">Κατεβάστε το Exams Planner (GitHub)</a> · v' . esc_html( DGN_VERSION ) . '</p>';
 }

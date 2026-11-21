@@ -228,21 +228,36 @@ body.dgn-page h1.dgn-centered-title {
   body.dgn-page h1.dgn-centered-title { margin-top: 30px !important; }
 }
 
-/* Υποσέλιδο «Δημιουργία: … · vX». Ανεξάρτητη κλάση με !important (βρίσκεται έξω από το .dgn-app).
+/* Υποσέλιδο «Δημιουργία: … · Ελεύθερο λογισμικό · σύνδεσμος GitHub · vX». Ανεξάρτητη κλάση με !important (βρίσκεται έξω από το .dgn-app).
    Μέσα στο <article> της σελίδας κάθεται απόλυτα στην κάτω δεξιά γωνία, ώστε να μην προσθέτει κενό.
-   Χωρίς <article> (άλλο θέμα) μένει στη ροή, δεξιά, χωρίς περιθώριο. Χρώμα = --dgn-muted. */
+   Χωρίς <article> (άλλο θέμα) μένει στη ροή, δεξιά, χωρίς περιθώριο. Χρώμα = --dgn-muted, ο σύνδεσμος γαλάζιος.
+   Σε στενή οθόνη (κινητό) η γραμμή μπαίνει στη ροή και αλλάζει γραμμή, ώστε να μη κόβεται ούτε να καλύπτει τον πίνακα. */
 .dgn-credit {
-  font-size: 8px !important;
+  font-size: 10px !important;
   line-height: 1.4 !important;
   margin: 0 !important;
   padding: 0 !important;
   text-align: right !important;
   color: #5d6f74 !important;
 }
+.dgn-credit a {
+  color: #1d6a84 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 2px;
+}
+.dgn-credit a:hover { color: #14485a !important; }
 .dgn-credit-host { position: relative !important; }
 .dgn-credit.dgn-credit-corner {
   position: absolute !important;
   right: 12px !important;
   bottom: 6px !important;
   white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .dgn-credit.dgn-credit-corner {
+    position: static !important;
+    white-space: normal;
+    margin: 10px 12px 8px !important;
+  }
+  .dgn-credit a { display: inline-block; padding: 6px 0 !important; }
 }
