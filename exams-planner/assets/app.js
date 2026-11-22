@@ -10,22 +10,42 @@
   (function () {
     var credit = root.parentNode && root.parentNode.querySelector('.dgn-credit');
     var host = root.closest ? root.closest('article') : null;
-    if (!credit || !host) return;
+    if (!credit) return;
+    // Ίδια γραμματοσειρά με την εφαρμογή (1.11.1): έξω από το .dgn-app το θέμα μπορεί να ορίζει άλλη (π.χ. monospace).
+    credit.style.setProperty('font-family', window.getComputedStyle(root).fontFamily, 'important');
+    if (!host) return;
     host.appendChild(credit);
     if (window.getComputedStyle(host).position === 'static') host.classList.add('dgn-credit-host');
     credit.classList.add('dgn-credit-corner');
-    // Κινητό (1.11.0): το υποσέλιδο μένει στη ροή (πιάνει δύο γραμμές), αλλά κατεβαίνει μέσα στο κάτω/δεξί περιθώριο
-    // του <article>, ώστε να απέχει 6px από κάτω και 12px από δεξιά, όπως στον υπολογιστή (όχι κενό από κάτω).
+    // Το αρχικό inline padding-bottom του <article>, για να επανέρχεται πριν από κάθε νέα μέτρηση.
+    var hostPB = host.style.getPropertyValue('padding-bottom'), hostPBpri = host.style.getPropertyPriority('padding-bottom'), grown = false;
+    var MIN_GAP = 60; // ελάχιστη απόσταση (px) του υποσέλιδου από το τέλος της εφαρμογής (κουμπί εισόδου/εξόδου), στον υπολογιστή
     function fitCredit() {
       credit.style.removeProperty('margin-bottom');
       credit.style.removeProperty('margin-right');
-      if (window.getComputedStyle(credit).position !== 'static') return; // υπολογιστής: ήδη στη γωνία
+      if (grown) {
+        if (hostPB) host.style.setProperty('padding-bottom', hostPB, hostPBpri); else host.style.removeProperty('padding-bottom');
+        grown = false;
+      }
       var cs = window.getComputedStyle(host), pb = parseFloat(cs.paddingBottom) || 0, pr = parseFloat(cs.paddingRight) || 0;
+      if (window.getComputedStyle(credit).position !== 'static') {
+        // Υπολογιστής (1.11.1): στη γωνία, αλλά διακριτικά μακριά από το κουμπί. Αν το θέμα αφήνει λίγο χώρο κάτω
+        // (π.χ. Astra χωρίς «κουτί»), μεγαλώνει το κάτω περιθώριο του <article> ώστε η απόσταση να είναι τουλάχιστον MIN_GAP.
+        var gap = credit.getBoundingClientRect().top - root.getBoundingClientRect().bottom;
+        if (gap < MIN_GAP) {
+          host.style.setProperty('padding-bottom', Math.ceil(pb + MIN_GAP - gap) + 'px', 'important');
+          grown = true;
+        }
+        return;
+      }
+      // Κινητό (1.11.0): το υποσέλιδο μένει στη ροή (πιάνει δύο γραμμές), αλλά κατεβαίνει μέσα στο κάτω/δεξί περιθώριο
+      // του <article>, ώστε να απέχει 6px από κάτω και 12px από δεξιά, όπως στον υπολογιστή (όχι κενό από κάτω).
       if (pb > 6) credit.style.setProperty('margin-bottom', (6 - pb) + 'px', 'important');
       if (pr > 12) credit.style.setProperty('margin-right', (12 - pr) + 'px', 'important');
     }
     fitCredit();
     window.addEventListener('resize', fitCredit);
+    window.addEventListener('load', fitCredit); // μετά τις γραμματοσειρές/εικόνες του θέματος
   })();
 
   /* Ανθεκτικότητα σε cache: αν η σελίδα σερβιριστεί από παλιότερη αποθηκευμένη έκδοση,

@@ -254,6 +254,9 @@ body.dgn-page h1.dgn-centered-title {
 }
 .dgn-credit a:hover { color: #14485a !important; }
 .dgn-credit-host { position: relative !important; }
+/* Θέμα χωρίς <article> (1.11.1): το υποσέλιδο μένει στη ροή, αλλά με την ίδια απόσταση από το κουμπί (όχι κολλητά). */
+.dgn-credit:not(.dgn-credit-corner) { margin-top: 60px !important; }
+@media (max-width: 700px) { .dgn-credit:not(.dgn-credit-corner) { margin-top: 28px !important; } }
 .dgn-credit.dgn-credit-corner {
   position: absolute !important;
   right: 12px !important;
