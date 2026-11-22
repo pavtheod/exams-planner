@@ -724,23 +724,23 @@ function dgn_admin_section1_rows( $s, $form_groups, $ex = false ) {
 				<th scope="row"><label for="<?php echo esc_attr( $id ); ?>classes"><span class="dgn-only-gym">Τμήματα</span><span class="dgn-only-lyk">Γενικά τμήματα</span></label></th>
 				<td><textarea id="<?php echo esc_attr( $id ); ?>classes"<?php echo $nm( 'classes' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- σταθερό κείμενο ?> rows="8" class="dgn-list"><?php echo esc_textarea( $s['classes'] ); ?></textarea>
 				<?php if ( ! $ex ) { dgn_admin_orphan_warnings( $s ); } ?>
-				<p class="description">Ένα ανά γραμμή, με τη σειρά που θέλετε να εμφανίζονται. Το πρώτο γράμμα είναι η τάξη (Α, Β, Γ).<br>Αν μετονομάσετε ή αφαιρέσετε ένα τμήμα, οι δηλώσεις του μένουν με το παλιό όνομα και δεν φαίνονται πια στον πίνακα.</p></td>
+				<p class="description">Ένα ανά γραμμή, με τη σειρά που θέλετε να εμφανίζονται. Το πρώτο γράμμα είναι η τάξη (Α, Β, Γ).<br>Αν αλλάξετε το όνομα ενός τμήματος (π.χ. το Β1 σε Β4) ή το αφαιρέσετε, τα διαγωνίσματα που έχουν ήδη δηλωθεί γι' αυτό δεν θα φαίνονται πια στον πίνακα σε μαθητές, γονείς και καθηγητές, και θα μπορεί να δηλωθεί άλλο διαγώνισμα τις ίδιες ημέρες. Γι' αυτό, κάντε τέτοιες αλλαγές πριν αρχίσουν οι δηλώσεις.</p></td>
 			</tr>
 			<tr>
 				<th scope="row"><label for="<?php echo esc_attr( $id ); ?>subjects"><span class="dgn-only-gym">Μαθήματα και τάξεις</span><span class="dgn-only-lyk">Μαθήματα γενικής παιδείας</span></label></th>
 				<td><textarea id="<?php echo esc_attr( $id ); ?>subjects"<?php echo $nm( 'subjects' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- σταθερό κείμενο ?> rows="12" class="dgn-list"><?php echo esc_textarea( $s['subjects'] ); ?></textarea>
 				<?php if ( ! $ex ) { dgn_admin_subject_warnings( $s ); } ?>
-				<p class="description"><span class="dgn-only-lyk">Τα μαθήματα που διδάσκονται σε όλο το τμήμα. </span>Ένα μάθημα ανά γραμμή, με τη συντομογραφία του (έως 5 γράμματα, φαίνεται στον πίνακα): <code>Μαθηματικά | ΜΑΘ</code>.<br>Αν ένα μάθημα διδάσκεται μόνο σε ορισμένες τάξεις, προσθέστε μία ακόμη κάθετο και τις τάξεις: <code>Χημεία | ΧΗΜ | Β, Γ</code>. Τότε το μάθημα εμφανίζεται μόνο στα τμήματα αυτών των τάξεων.</p>
-				<p class="description dgn-only-lyk">Η «Ιστορία» και τα «Μαθηματικά» της Γ΄ γενικής παιδείας δηλώνονται εδώ, ως μαθήματα του τμήματος, παρότι δεν τα παρακολουθούν όλοι οι μαθητές του.</p></td>
+				<p class="description">Ένα μάθημα ανά γραμμή, με τη συντομογραφία του (έως 5 γράμματα, φαίνεται στον πίνακα): <code>Μαθηματικά | ΜΑΘ</code>.<br>Αν ένα μάθημα διδάσκεται μόνο σε ορισμένες τάξεις, προσθέστε μία ακόμη κάθετο και τις τάξεις: <code>Χημεία | ΧΗΜ | Β, Γ</code>. Τότε το μάθημα εμφανίζεται μόνο στα τμήματα αυτών των τάξεων.</p>
+				<p class="description dgn-only-lyk">Η «Ιστορία» και τα «Μαθηματικά» της Γ΄ τάξης δηλώνονται εδώ, ως μαθήματα γενικής παιδείας, παρότι δεν τα παρακολουθούν όλοι οι μαθητές: την Ιστορία οι μαθητές των Θετικών και Υγείας και της Οικονομίας και Πληροφορικής, και τα Μαθηματικά οι μαθητές των Ανθρωπιστικών.</p></td>
 			</tr>
 			<tr class="dgn-groups-row dgn-only-lyk">
 				<th scope="row">Ομάδες προσανατολισμού</th>
 				<td>
-					<div class="dgn-groups-info"><strong>Πώς λειτουργούν οι ομάδες.</strong> Κάθε γενικό τμήμα έχει κοινούς μαθητές με όλες τις ομάδες της τάξης του. Γι' αυτό, σε κάθε τάξη, μια ημέρα είναι ή ημέρα διαγωνισμάτων των τμημάτων ή ημέρα διαγωνισμάτων των ομάδων, όχι και τα δύο. Το όριο των διαγωνισμάτων της εβδομάδας μετρά μαζί τα διαγωνίσματα του τμήματος και της ομάδας.</div>
+					<div class="dgn-groups-info"><strong>Πώς λειτουργούν οι ομάδες.</strong> Οι μαθητές κάθε γενικού τμήματος μπορεί να συμμετέχουν σε διαφορετικές ομάδες προσανατολισμού της ίδιας τάξης. Για τον λόγο αυτό, σε κάθε τάξη, μια ημέρα μπορεί να είναι είτε ημέρα διαγωνισμάτων των γενικών τμημάτων είτε ημέρα διαγωνισμάτων των ομάδων, όχι και τα δύο. Το εβδομαδιαίο όριο μετρά μαζί τα διαγωνίσματα του γενικού τμήματος και της ομάδας κάθε μαθητή.</div>
 					<div id="<?php echo esc_attr( $id ); ?>groups" class="dgn-groups"><p class="description">Οι ομάδες εμφανίζονται όταν φορτώσει η σελίδα (χρειάζεται JavaScript).</p></div>
 					<p style="margin:10px 0 0"><button type="button" class="button" id="<?php echo esc_attr( $id ); ?>add-group">+ Προσθήκη ομάδας</button></p>
 					<?php if ( ! $ex ) { dgn_admin_group_warnings( $s, $form_groups ); } ?>
-					<p class="description">Στον πίνακα κάθε ομάδα εμφανίζεται ως στήλη με την τάξη και το σύντομο όνομά της, π.χ. <code>Β·ΘΕΤ</code>, μετά τα τμήματα της τάξης. Τα ίδια μαθήματα (π.χ. «Φυσική», «Ιστορία») μπορούν να υπάρχουν και στα γενικά μαθήματα και σε μια ομάδα: το τμήμα ή η ομάδα της δήλωσης δείχνει ποιο εννοείται. Αν αλλάξετε την τάξη ή το σύντομο όνομα μιας ομάδας, οι δηλώσεις της μένουν με το παλιό όνομα.</p>
+					<p class="description" style="margin-top:12px"><strong>Σημείωση:</strong> το ίδιο μάθημα (π.χ. «Φυσική») μπορεί να υπάρχει και στα μαθήματα γενικής παιδείας και σε μια ομάδα. Αν αλλάξετε την τάξη ή τη συντομογραφία μιας ομάδας (π.χ. το <code>Β·ΘΕΤ</code> σε <code>Β·ΘΕΣ</code>), τα διαγωνίσματα που έχουν ήδη δηλωθεί γι' αυτήν δεν θα φαίνονται πια στον πίνακα σε μαθητές, γονείς και καθηγητές, και θα μπορεί να δηλωθεί άλλο διαγώνισμα τις ίδιες ημέρες. Γι' αυτό, κάντε τέτοιες αλλαγές πριν αρχίσουν οι δηλώσεις.</p>
 				</td>
 			</tr>
 	<?php
@@ -770,7 +770,7 @@ function dgn_admin_group_card_js() {
 			var short = mk( 'input', { type: 'text', id: id + 's', maxlength: '5', 'data-f': 'short' } ); short.value = g.short || '';
 			fName.appendChild( mk( 'label', { 'for': id + 'n', text: 'Όνομα ομάδας' } ) ); fName.appendChild( name );
 			fGrade.appendChild( mk( 'label', { 'for': id + 't', text: 'Τάξη' } ) ); fGrade.appendChild( grade );
-			fShort.appendChild( mk( 'label', { 'for': id + 's', text: 'Σύντομο όνομα' } ) ); fShort.appendChild( short );
+			fShort.appendChild( mk( 'label', { 'for': id + 's', text: 'Συντομογραφία' } ) ); fShort.appendChild( short );
 			topRow.appendChild( fName ); topRow.appendChild( fGrade ); topRow.appendChild( fShort );
 			var preview = mk( 'p', { 'class': 'dgn-group-label', style: 'margin:6px 0 0' } );
 			function upd() { preview.textContent = 'Στον πίνακα: ' + grade.value + '·' + ( short.value.trim().toUpperCase() || '…' ); }
@@ -813,7 +813,7 @@ function dgn_admin_tab_example() {
 	?>
 	<div class="dgn-settings dgn-example" data-type="<?php echo esc_attr( $other ); ?>">
 		<div class="dgn-example-note" style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px 16px;background:#fcf9e8;border:1px solid #f0d58c;border-left:4px solid #dba617;padding:10px 14px;margin:18px 0;max-width:1100px;box-sizing:border-box">
-			<p style="margin:0;flex:1 1 420px;max-width:860px"><strong>Παράδειγμα:</strong> το σχολείο σας είναι <?php echo esc_html( $names[ $s['school_type'] ] ); ?>. Εδώ βλέπετε πώς είναι η ενότητα 1 των Ρυθμίσεων <?php echo esc_html( $in[ $other ] ); ?>, με τις προτεινόμενες λίστες. <?php echo esc_html( 'lyk' === $other ? 'Μπορείτε να γράψετε και να προσθέσετε ή να αφαιρέσετε ομάδες.' : 'Μπορείτε να γράψετε στα πεδία.' ); ?> <strong>Δεν επηρεάζει τις ρυθμίσεις σας και δεν αποθηκεύεται τίποτα.</strong></p>
+			<p style="margin:0;flex:1 1 420px;max-width:860px"><strong>Παράδειγμα:</strong> το σχολείο σας είναι <?php echo esc_html( $names[ $s['school_type'] ] ); ?>. Εδώ βλέπετε πώς είναι η ενότητα 1 των Ρυθμίσεων <?php echo esc_html( $in[ $other ] ); ?>, με τις προτεινόμενες λίστες. <?php echo esc_html( 'lyk' === $other ? 'Μπορείτε να προσθέσετε ή να αφαιρέσετε τμήματα, μαθήματα και ομάδες.' : 'Μπορείτε να προσθέσετε ή να αφαιρέσετε τμήματα και μαθήματα.' ); ?> <strong>Δεν επηρεάζει τις ρυθμίσεις σας και δεν αποθηκεύεται τίποτα.</strong></p>
 			<button type="button" class="button" id="dgn-ex-reset">Επαναφορά παραδείγματος</button>
 		</div>
 		<div class="dgn-sec">
@@ -898,7 +898,7 @@ function dgn_admin_group_warnings( $s, $form_groups ) {
 		$warn[] = '<strong>Ομάδες χωρίς κανένα μάθημα:</strong> ' . esc_html( implode( ', ', $nosubj ) ) . '.';
 	}
 	if ( $dup ) {
-		$warn[] = '<strong>Η ετικέτα στον πίνακα πρέπει να είναι μοναδική:</strong> ' . esc_html( implode( ' · ', $dup ) ) . '. Η ομάδα δεν εμφανίζεται και δεν δέχεται δηλώσεις μέχρι να αλλάξετε το σύντομο όνομά της.';
+		$warn[] = '<strong>Η ετικέτα στον πίνακα πρέπει να είναι μοναδική:</strong> ' . esc_html( implode( ' · ', $dup ) ) . '. Η ομάδα δεν εμφανίζεται και δεν δέχεται δηλώσεις μέχρι να αλλάξετε τη συντομογραφία της.';
 	}
 	$groups = dgn_groups( $s );
 	if ( $groups ) {
