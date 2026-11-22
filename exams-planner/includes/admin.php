@@ -267,6 +267,11 @@ function dgn_admin_page() {
 		'exams'    => 'Δηλώσεις',
 		'log'      => 'Ιστορικό',
 	);
+	// Παράδειγμα του άλλου τύπου σχολείου (1.12.0): μόνο αφού ο τύπος οριστεί οριστικά.
+	$s_tabs = dgn_settings();
+	if ( dgn_type_locked( $s_tabs ) ) {
+		$tabs['example'] = 'lyk' === $s_tabs['school_type'] ? 'Παράδειγμα Γυμνασίου' : 'Παράδειγμα Λυκείου';
+	}
 	if ( ! isset( $tabs[ $tab ] ) ) {
 		$tab = 'settings';
 	}
@@ -347,61 +352,7 @@ function dgn_admin_tab_settings() {
 		}
 		?> από την cache, ώστε να εμφανίζεται πάντα η σωστή ημερομηνία και η τρέχουσα έκδοση.</span>
 	</div>
-	<style>
-		.dgn-settings input[type=number].small-text { width: 4.2em; height: 30px; min-height: 30px; padding: 0 4px 0 8px; line-height: 28px; }
-		.dgn-settings td > label { display: inline-block; line-height: 2; }
-		/* Ο κωδικός καθηγητών «ανήκει» στην τελευταία επιλογή από πάνω: μικρότερο κενό ανάμεσά τους. */
-		.dgn-settings tr.dgn-access-row > th, .dgn-settings tr.dgn-access-row > td { padding-bottom: 6px; }
-		.dgn-settings tr.dgn-code-row > th, .dgn-settings tr.dgn-code-row > td { padding-top: 6px; }
-		/* Γραμμή που δεν αφορά τον τρέχοντα «Τρόπο εισόδου»: γκρι και ανενεργή. */
-		.dgn-settings tr.dgn-off > th, .dgn-settings tr.dgn-off > td { opacity: .5; }
-		/* Καθηγητές με ΠΣΔ: γκρι όλα εκτός από το πλαίσιο που εξηγεί γιατί. */
-		.dgn-settings tr.dgn-teachers-row.dgn-off > td { opacity: 1; }
-		.dgn-settings tr.dgn-teachers-row.dgn-off > td > :not(.dgn-sso-note) { opacity: .5; }
-		/* Επικίνδυνη επιλογή (διαγραφή δεδομένων): πλαίσιο με κόκκινη γραμμή αριστερά, όπως το μπλε του ΠΣΔ. */
-		.dgn-danger { padding: 8px 12px; max-width: 640px; background: #fff; border-left: 4px solid #d63638; box-shadow: 0 1px 1px rgba(0,0,0,.08); }
-		.dgn-danger p.description { margin: 6px 0 0; }
-		.dgn-sso-note { margin: 12px 0 4px; padding: 8px 12px; max-width: 560px; background: #fff; border-left: 4px solid #72aee6; box-shadow: 0 1px 1px rgba(0,0,0,.04); }
-		/* Επιλογές μέσα στην ίδια γραμμή: η καθεμία χωριστά, με κενό ανάμεσα. */
-		.dgn-settings .dgn-opt { margin: 0 0 14px; }
-		.dgn-settings .dgn-opt:last-of-type { margin-bottom: 8px; }
-		/* Σύνδεση με ΠΣΔ: κενό ανάμεσα στις ομάδες πεδίων· οι σημειώσεις χωριστά, κάτω από μια λεπτή γραμμή. */
-		.dgn-settings .dgn-group { margin: 0 0 16px; }
-		.dgn-settings .dgn-group label { line-height: 2; }
-		.dgn-settings .dgn-notes { border-top: 1px solid #dcdcde; padding-top: 10px; margin-top: 4px; }
-		.dgn-settings .dgn-notes p.description { margin: 0 0 8px; }
-		.dgn-settings .dgn-strength { margin: 6px 0 4px; font-weight: 600; }
-		.dgn-settings .dgn-strength.ok { color: #00a32a; }
-		.dgn-settings .dgn-strength.bad { color: #d63638; }
-		/* Ενότητες (1.9.96): λευκά πλαίσια με αριθμό και τίτλο. */
-		.dgn-settings .dgn-sec { background: #fff; border: 1px solid #c3c4c7; margin: 18px 0; max-width: 1100px; }
-		.dgn-settings .dgn-sec-h { margin: 0; padding: 10px 16px; font-size: 15px; border-bottom: 1px solid #dcdcde; display: flex; align-items: center; gap: 10px; }
-		.dgn-settings .dgn-sec-h small { font-weight: 400; color: #646970; font-size: 12px; }
-		.dgn-settings .dgn-n { background: #2271b1; color: #fff; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex: none; }
-		.dgn-settings .dgn-sec .form-table { margin: 0; }
-		.dgn-settings .dgn-sec .form-table th { padding-left: 16px; }
-		.dgn-settings .dgn-sec .form-table tr + tr > th, .dgn-settings .dgn-sec .form-table tr + tr > td { border-top: 1px solid #f0f0f1; }
-		/* Όλες οι λίστες και τα πεδία κειμένου στο ίδιο πλάτος, όσο χρειάζεται για να χωράει μία γραμμή αργιών· στο κινητό όσο η οθόνη. */
-		.dgn-settings textarea.dgn-list, .dgn-settings input.regular-text { width: 31em; max-width: 100%; box-sizing: border-box; }
-		@media (max-width: 782px) { .dgn-settings textarea.dgn-list, .dgn-settings input.regular-text { width: 100%; } }
-		.dgn-settings details.dgn-notes summary { cursor: pointer; color: #2271b1; margin: 0 0 8px; }
-		/* Τύπος σχολείου (1.11.0): ό,τι αφορά μόνο τον έναν τύπο κρύβεται στον άλλον. */
-		.dgn-settings[data-type="gym"] .dgn-only-lyk, .dgn-settings[data-type="lyk"] .dgn-only-gym { display: none !important; }
-		.dgn-settings .dgn-typebox { background: #fff; border: 1px solid #c3c4c7; border-left: 4px solid #2271b1; padding: 12px 16px; margin: 18px 0; max-width: 1100px; box-sizing: border-box; }
-		.dgn-settings .dgn-typebox-h { margin: 0 0 8px; font-size: 15px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-		.dgn-settings .dgn-badge { font-size: 11px; font-weight: 600; background: #fcf9e8; border: 1px solid #dba617; color: #6b4e00; border-radius: 3px; padding: 1px 6px; }
-		.dgn-settings .dgn-type-radios label { display: inline-block; margin: 0 22px 6px 0; font-size: 14px; line-height: 2; }
-		.dgn-settings .dgn-type-text { margin: 6px 0 0; max-width: 900px; }
-		.dgn-settings .dgn-groups-info { background: #f0f6fc; border: 1px solid #c5d9ed; border-radius: 4px; padding: 10px 14px; margin: 0 0 14px; max-width: 720px; }
-		.dgn-settings .dgn-groups { display: flex; flex-wrap: wrap; gap: 16px; max-width: 900px; }
-		.dgn-settings .dgn-group-card { flex: 1 1 380px; min-width: 0; box-sizing: border-box; border: 1px solid #dcdcde; border-radius: 4px; padding: 12px 14px; background: #fff; }
-		.dgn-settings .dgn-group-top { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
-		.dgn-settings .dgn-group-card label { display: block; font-weight: 600; font-size: 13px; margin: 0 0 4px; }
-		.dgn-settings .dgn-group-card input, .dgn-settings .dgn-group-card select, .dgn-settings .dgn-group-card textarea { width: 100%; box-sizing: border-box; }
-		.dgn-settings .dgn-group-card textarea { margin-top: 0; }
-		.dgn-settings .dgn-group-label { color: #646970; font-size: 12px; font-weight: 400; }
-		.dgn-settings .dgn-group-del { color: #b32d2e; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; font-size: 13px; }
-	</style>
+	<?php dgn_admin_settings_css(); ?>
 	<?php
 	$locked     = dgn_type_locked( $s );
 	$etype      = dgn_effective_type( $s );
@@ -439,29 +390,7 @@ function dgn_admin_tab_settings() {
 					<p class="description">Δεν εμφανίζεται στη σελίδα. Με αυτό το όνομα αποθηκεύει ο browser τον κωδικό των καθηγητών.</p>
 				</td>
 			</tr>
-			<tr>
-				<th scope="row"><label for="dgn-classes"><span class="dgn-only-gym">Τμήματα</span><span class="dgn-only-lyk">Γενικά τμήματα</span></label></th>
-				<td><textarea id="dgn-classes" name="classes" rows="8" class="dgn-list"><?php echo esc_textarea( $s['classes'] ); ?></textarea>
-				<?php dgn_admin_orphan_warnings( $s ); ?>
-				<p class="description">Ένα ανά γραμμή, με τη σειρά που θέλετε να εμφανίζονται. Το πρώτο γράμμα είναι η τάξη (Α, Β, Γ).<br>Αν μετονομάσετε ή αφαιρέσετε ένα τμήμα, οι δηλώσεις του μένουν με το παλιό όνομα και δεν φαίνονται πια στον πίνακα.</p></td>
-			</tr>
-			<tr>
-				<th scope="row"><label for="dgn-subjects"><span class="dgn-only-gym">Μαθήματα και τάξεις</span><span class="dgn-only-lyk">Μαθήματα γενικής παιδείας</span></label></th>
-				<td><textarea id="dgn-subjects" name="subjects" rows="12" class="dgn-list"><?php echo esc_textarea( $s['subjects'] ); ?></textarea>
-				<?php dgn_admin_subject_warnings( $s ); ?>
-				<p class="description"><span class="dgn-only-lyk">Τα μαθήματα που διδάσκονται σε όλο το τμήμα. </span>Ένα μάθημα ανά γραμμή, με τη συντομογραφία του (έως 5 γράμματα, φαίνεται στον πίνακα): <code>Μαθηματικά | ΜΑΘ</code>.<br>Αν ένα μάθημα διδάσκεται μόνο σε ορισμένες τάξεις, προσθέστε μία ακόμη κάθετο και τις τάξεις: <code>Χημεία | ΧΗΜ | Β, Γ</code>. Τότε το μάθημα εμφανίζεται μόνο στα τμήματα αυτών των τάξεων.</p>
-				<p class="description dgn-only-lyk">Η «Ιστορία» και τα «Μαθηματικά» της Γ΄ γενικής παιδείας δηλώνονται εδώ, ως μαθήματα του τμήματος, παρότι δεν τα παρακολουθούν όλοι οι μαθητές του.</p></td>
-			</tr>
-			<tr class="dgn-groups-row dgn-only-lyk">
-				<th scope="row">Ομάδες προσανατολισμού</th>
-				<td>
-					<div class="dgn-groups-info"><strong>Πώς λειτουργούν οι ομάδες.</strong> Κάθε γενικό τμήμα έχει κοινούς μαθητές με όλες τις ομάδες της τάξης του. Γι' αυτό, σε κάθε τάξη, μια ημέρα είναι ή ημέρα διαγωνισμάτων των τμημάτων ή ημέρα διαγωνισμάτων των ομάδων, όχι και τα δύο. Το όριο των διαγωνισμάτων της εβδομάδας μετρά μαζί τα διαγωνίσματα του τμήματος και της ομάδας.</div>
-					<div id="dgn-groups" class="dgn-groups"><p class="description">Οι ομάδες εμφανίζονται όταν φορτώσει η σελίδα (χρειάζεται JavaScript).</p></div>
-					<p style="margin:10px 0 0"><button type="button" class="button" id="dgn-add-group">+ Προσθήκη ομάδας</button></p>
-					<?php dgn_admin_group_warnings( $s, $form_groups ); ?>
-					<p class="description">Στον πίνακα κάθε ομάδα εμφανίζεται ως στήλη με την τάξη και το σύντομο όνομά της, π.χ. <code>Β·ΘΕΤ</code>, μετά τα τμήματα της τάξης. Τα ίδια μαθήματα (π.χ. «Φυσική», «Ιστορία») μπορούν να υπάρχουν και στα γενικά μαθήματα και σε μια ομάδα: το τμήμα ή η ομάδα της δήλωσης δείχνει ποιο εννοείται. Αν αλλάξετε την τάξη ή το σύντομο όνομα μιας ομάδας, οι δηλώσεις της μένουν με το παλιό όνομα.</p>
-				</td>
-			</tr>
+			<?php dgn_admin_section1_rows( $s, $form_groups ); ?>
 			</table>
 		</div>
 		<div class="dgn-sec">
@@ -633,6 +562,7 @@ function dgn_admin_tab_settings() {
 		if ( codeIn ) { codeIn.addEventListener( 'input', strength ); strength(); }
 	} )();
 	</script>
+	<?php dgn_admin_group_card_js(); ?>
 	<script>
 	/* Τύπος σχολείου και ομάδες προσανατολισμού (1.11.0). */
 	( function () {
@@ -641,45 +571,13 @@ function dgn_admin_tab_settings() {
 		var D = <?php echo wp_json_encode( array( 'rec' => dgn_recommended_lists(), 'groups' => $form_groups, 'locked' => $locked, 'type' => $etype ) ); ?>;
 		var box = form.querySelector( '#dgn-groups' ), addBtn = form.querySelector( '#dgn-add-group' );
 		var classesEl = form.querySelector( '#dgn-classes' ), subjectsEl = form.querySelector( '#dgn-subjects' );
-		if ( ! box || ! classesEl || ! subjectsEl ) return;
+		if ( ! box || ! classesEl || ! subjectsEl || ! window.dgnGroupCard ) return;
 		// Μόνο αν φτάσει εδώ το JS στέλνονται οι ομάδες· αλλιώς ο server κρατά τις αποθηκευμένες.
 		var gp = document.createElement( 'input' );
 		gp.type = 'hidden'; gp.name = 'groups_present'; gp.value = '1';
 		form.appendChild( gp );
-		var GRADES = [ 'Α', 'Β', 'Γ', 'Δ' ];
-		function mk( tag, attrs ) {
-			var n = document.createElement( tag );
-			Object.keys( attrs || {} ).forEach( function ( k ) { if ( k === 'text' ) n.textContent = attrs[ k ]; else n.setAttribute( k, attrs[ k ] ); } );
-			return n;
-		}
-		var uid = 0;
-		function card( g ) {
-			var id = 'dgn-g' + ( ++uid );
-			var c = mk( 'div', { 'class': 'dgn-group-card' } );
-			var topRow = mk( 'div', { 'class': 'dgn-group-top' } );
-			var fName = mk( 'div', { style: 'flex:1 1 200px' } ), fGrade = mk( 'div', { style: 'flex:0 0 64px' } ), fShort = mk( 'div', { style: 'flex:0 0 110px' } );
-			var name = mk( 'input', { type: 'text', id: id + 'n', maxlength: '40', 'data-f': 'name' } ); name.value = g.name || '';
-			var grade = mk( 'select', { id: id + 't', 'data-f': 'grade' } );
-			var grades = GRADES.slice(); if ( g.grade && grades.indexOf( g.grade ) === -1 ) grades.push( g.grade );
-			grades.forEach( function ( x ) { grade.appendChild( mk( 'option', { value: x, text: x } ) ); } );
-			grade.value = g.grade || 'Β';
-			var short = mk( 'input', { type: 'text', id: id + 's', maxlength: '5', 'data-f': 'short' } ); short.value = g.short || '';
-			fName.appendChild( mk( 'label', { 'for': id + 'n', text: 'Όνομα ομάδας' } ) ); fName.appendChild( name );
-			fGrade.appendChild( mk( 'label', { 'for': id + 't', text: 'Τάξη' } ) ); fGrade.appendChild( grade );
-			fShort.appendChild( mk( 'label', { 'for': id + 's', text: 'Σύντομο όνομα' } ) ); fShort.appendChild( short );
-			topRow.appendChild( fName ); topRow.appendChild( fGrade ); topRow.appendChild( fShort );
-			var preview = mk( 'p', { 'class': 'dgn-group-label', style: 'margin:6px 0 0' } );
-			function upd() { preview.textContent = 'Στον πίνακα: ' + grade.value + '·' + ( short.value.trim().toUpperCase() || '…' ); }
-			name.addEventListener( 'input', upd ); grade.addEventListener( 'change', upd ); short.addEventListener( 'input', upd ); upd();
-			var subj = mk( 'textarea', { id: id + 'm', rows: '4', 'data-f': 'subjects', placeholder: 'Ένα ανά γραμμή, με τη συντομογραφία:\nΦυσική | ΦΥΣ' } ); subj.value = g.subjects || '';
-			var del = mk( 'button', { type: 'button', 'class': 'dgn-group-del', text: 'Αφαίρεση ομάδας' } );
-			del.addEventListener( 'click', function () { c.parentNode.removeChild( c ); renumber(); } );
-			c.appendChild( topRow ); c.appendChild( preview );
-			c.appendChild( mk( 'label', { 'for': id + 'm', style: 'margin-top:10px', text: 'Μαθήματα της ομάδας' } ) );
-			c.appendChild( subj );
-			var p = mk( 'p', { style: 'margin:8px 0 0' } ); p.appendChild( del ); c.appendChild( p );
-			return c;
-		}
+		// Η κάρτα μιας ομάδας: κοινή συνάρτηση με την καρτέλα «Παράδειγμα» (dgn_admin_group_card_js, 1.12.0).
+		function card( g ) { return window.dgnGroupCard( g, renumber ); }
 		function cards() { return Array.prototype.slice.call( box.querySelectorAll( '.dgn-group-card' ) ); }
 		function renumber() {
 			cards().forEach( function ( c, i ) {
@@ -741,6 +639,214 @@ function dgn_admin_tab_settings() {
 			// απλό «Αποθήκευση» δεν πρέπει να ορίσει τύπο.
 			window.setTimeout( function () { if ( h.parentNode ) h.parentNode.removeChild( h ); }, 0 );
 		} );
+	} )();
+	</script>
+	<?php
+}
+
+/** Τα στυλ της σελίδας Ρυθμίσεων· τα χρησιμοποιεί και η καρτέλα «Παράδειγμα» (1.12.0). */
+function dgn_admin_settings_css() {
+	?><style>
+		.dgn-settings input[type=number].small-text { width: 4.2em; height: 30px; min-height: 30px; padding: 0 4px 0 8px; line-height: 28px; }
+		.dgn-settings td > label { display: inline-block; line-height: 2; }
+		/* Ο κωδικός καθηγητών «ανήκει» στην τελευταία επιλογή από πάνω: μικρότερο κενό ανάμεσά τους. */
+		.dgn-settings tr.dgn-access-row > th, .dgn-settings tr.dgn-access-row > td { padding-bottom: 6px; }
+		.dgn-settings tr.dgn-code-row > th, .dgn-settings tr.dgn-code-row > td { padding-top: 6px; }
+		/* Γραμμή που δεν αφορά τον τρέχοντα «Τρόπο εισόδου»: γκρι και ανενεργή. */
+		.dgn-settings tr.dgn-off > th, .dgn-settings tr.dgn-off > td { opacity: .5; }
+		/* Καθηγητές με ΠΣΔ: γκρι όλα εκτός από το πλαίσιο που εξηγεί γιατί. */
+		.dgn-settings tr.dgn-teachers-row.dgn-off > td { opacity: 1; }
+		.dgn-settings tr.dgn-teachers-row.dgn-off > td > :not(.dgn-sso-note) { opacity: .5; }
+		/* Επικίνδυνη επιλογή (διαγραφή δεδομένων): πλαίσιο με κόκκινη γραμμή αριστερά, όπως το μπλε του ΠΣΔ. */
+		.dgn-danger { padding: 8px 12px; max-width: 640px; background: #fff; border-left: 4px solid #d63638; box-shadow: 0 1px 1px rgba(0,0,0,.08); }
+		.dgn-danger p.description { margin: 6px 0 0; }
+		.dgn-sso-note { margin: 12px 0 4px; padding: 8px 12px; max-width: 560px; background: #fff; border-left: 4px solid #72aee6; box-shadow: 0 1px 1px rgba(0,0,0,.04); }
+		/* Επιλογές μέσα στην ίδια γραμμή: η καθεμία χωριστά, με κενό ανάμεσα. */
+		.dgn-settings .dgn-opt { margin: 0 0 14px; }
+		.dgn-settings .dgn-opt:last-of-type { margin-bottom: 8px; }
+		/* Σύνδεση με ΠΣΔ: κενό ανάμεσα στις ομάδες πεδίων· οι σημειώσεις χωριστά, κάτω από μια λεπτή γραμμή. */
+		.dgn-settings .dgn-group { margin: 0 0 16px; }
+		.dgn-settings .dgn-group label { line-height: 2; }
+		.dgn-settings .dgn-notes { border-top: 1px solid #dcdcde; padding-top: 10px; margin-top: 4px; }
+		.dgn-settings .dgn-notes p.description { margin: 0 0 8px; }
+		.dgn-settings .dgn-strength { margin: 6px 0 4px; font-weight: 600; }
+		.dgn-settings .dgn-strength.ok { color: #00a32a; }
+		.dgn-settings .dgn-strength.bad { color: #d63638; }
+		/* Ενότητες (1.9.96): λευκά πλαίσια με αριθμό και τίτλο. */
+		.dgn-settings .dgn-sec { background: #fff; border: 1px solid #c3c4c7; margin: 18px 0; max-width: 1100px; }
+		.dgn-settings .dgn-sec-h { margin: 0; padding: 10px 16px; font-size: 15px; border-bottom: 1px solid #dcdcde; display: flex; align-items: center; gap: 10px; }
+		.dgn-settings .dgn-sec-h small { font-weight: 400; color: #646970; font-size: 12px; }
+		.dgn-settings .dgn-n { background: #2271b1; color: #fff; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex: none; }
+		.dgn-settings .dgn-sec .form-table { margin: 0; }
+		.dgn-settings .dgn-sec .form-table th { padding-left: 16px; }
+		.dgn-settings .dgn-sec .form-table tr + tr > th, .dgn-settings .dgn-sec .form-table tr + tr > td { border-top: 1px solid #f0f0f1; }
+		/* Όλες οι λίστες και τα πεδία κειμένου στο ίδιο πλάτος, όσο χρειάζεται για να χωράει μία γραμμή αργιών· στο κινητό όσο η οθόνη. */
+		.dgn-settings textarea.dgn-list, .dgn-settings input.regular-text { width: 31em; max-width: 100%; box-sizing: border-box; }
+		@media (max-width: 782px) { .dgn-settings textarea.dgn-list, .dgn-settings input.regular-text { width: 100%; } }
+		.dgn-settings details.dgn-notes summary { cursor: pointer; color: #2271b1; margin: 0 0 8px; }
+		/* Τύπος σχολείου (1.11.0): ό,τι αφορά μόνο τον έναν τύπο κρύβεται στον άλλον. */
+		.dgn-settings[data-type="gym"] .dgn-only-lyk, .dgn-settings[data-type="lyk"] .dgn-only-gym { display: none !important; }
+		.dgn-settings .dgn-typebox { background: #fff; border: 1px solid #c3c4c7; border-left: 4px solid #2271b1; padding: 12px 16px; margin: 18px 0; max-width: 1100px; box-sizing: border-box; }
+		.dgn-settings .dgn-typebox-h { margin: 0 0 8px; font-size: 15px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+		.dgn-settings .dgn-badge { font-size: 11px; font-weight: 600; background: #fcf9e8; border: 1px solid #dba617; color: #6b4e00; border-radius: 3px; padding: 1px 6px; }
+		.dgn-settings .dgn-type-radios label { display: inline-block; margin: 0 22px 6px 0; font-size: 14px; line-height: 2; }
+		.dgn-settings .dgn-type-text { margin: 6px 0 0; max-width: 900px; }
+		.dgn-settings .dgn-groups-info { background: #f0f6fc; border: 1px solid #c5d9ed; border-radius: 4px; padding: 10px 14px; margin: 0 0 14px; max-width: 720px; }
+		.dgn-settings .dgn-groups { display: flex; flex-wrap: wrap; gap: 16px; max-width: 900px; }
+		.dgn-settings .dgn-group-card { flex: 1 1 380px; min-width: 0; box-sizing: border-box; border: 1px solid #dcdcde; border-radius: 4px; padding: 12px 14px; background: #fff; }
+		.dgn-settings .dgn-group-top { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+		.dgn-settings .dgn-group-card label { display: block; font-weight: 600; font-size: 13px; margin: 0 0 4px; }
+		.dgn-settings .dgn-group-card input, .dgn-settings .dgn-group-card select, .dgn-settings .dgn-group-card textarea { width: 100%; box-sizing: border-box; }
+		.dgn-settings .dgn-group-card textarea { margin-top: 0; }
+		.dgn-settings .dgn-group-label { color: #646970; font-size: 12px; font-weight: 400; }
+		.dgn-settings .dgn-group-del { color: #b32d2e; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; font-size: 13px; }
+	</style>
+<?php
+}
+
+/**
+ * Οι γραμμές της ενότητας 1 που εξαρτώνται από τον τύπο: τμήματα, μαθήματα, ομάδες προσανατολισμού (1.12.0).
+ * Τις χρησιμοποιούν οι Ρυθμίσεις και η καρτέλα «Παράδειγμα», ώστε τα κείμενα να είναι πάντα ίδια.
+ * Στο παράδειγμα ($ex = true) τα πεδία ΔΕΝ έχουν name (δεν στέλνονται ποτέ), έχουν δικά τους id
+ * και δεν εμφανίζονται οι προειδοποιήσεις, που αφορούν τα δεδομένα του σχολείου.
+ *
+ * @param array $s           Ρυθμίσεις (ή, στο παράδειγμα, οι προτεινόμενες λίστες: classes, subjects).
+ * @param array $form_groups Ομάδες για τις κάρτες.
+ * @param bool  $ex          Παράδειγμα (true) ή οι πραγματικές Ρυθμίσεις (false).
+ */
+function dgn_admin_section1_rows( $s, $form_groups, $ex = false ) {
+	$id = $ex ? 'dgn-ex-' : 'dgn-';
+	$nm = function ( $n ) use ( $ex ) {
+		return $ex ? ' autocomplete="off"' : ' name="' . $n . '"';
+	};
+	?>
+			<tr>
+				<th scope="row"><label for="<?php echo esc_attr( $id ); ?>classes"><span class="dgn-only-gym">Τμήματα</span><span class="dgn-only-lyk">Γενικά τμήματα</span></label></th>
+				<td><textarea id="<?php echo esc_attr( $id ); ?>classes"<?php echo $nm( 'classes' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- σταθερό κείμενο ?> rows="8" class="dgn-list"><?php echo esc_textarea( $s['classes'] ); ?></textarea>
+				<?php if ( ! $ex ) { dgn_admin_orphan_warnings( $s ); } ?>
+				<p class="description">Ένα ανά γραμμή, με τη σειρά που θέλετε να εμφανίζονται. Το πρώτο γράμμα είναι η τάξη (Α, Β, Γ).<br>Αν μετονομάσετε ή αφαιρέσετε ένα τμήμα, οι δηλώσεις του μένουν με το παλιό όνομα και δεν φαίνονται πια στον πίνακα.</p></td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="<?php echo esc_attr( $id ); ?>subjects"><span class="dgn-only-gym">Μαθήματα και τάξεις</span><span class="dgn-only-lyk">Μαθήματα γενικής παιδείας</span></label></th>
+				<td><textarea id="<?php echo esc_attr( $id ); ?>subjects"<?php echo $nm( 'subjects' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- σταθερό κείμενο ?> rows="12" class="dgn-list"><?php echo esc_textarea( $s['subjects'] ); ?></textarea>
+				<?php if ( ! $ex ) { dgn_admin_subject_warnings( $s ); } ?>
+				<p class="description"><span class="dgn-only-lyk">Τα μαθήματα που διδάσκονται σε όλο το τμήμα. </span>Ένα μάθημα ανά γραμμή, με τη συντομογραφία του (έως 5 γράμματα, φαίνεται στον πίνακα): <code>Μαθηματικά | ΜΑΘ</code>.<br>Αν ένα μάθημα διδάσκεται μόνο σε ορισμένες τάξεις, προσθέστε μία ακόμη κάθετο και τις τάξεις: <code>Χημεία | ΧΗΜ | Β, Γ</code>. Τότε το μάθημα εμφανίζεται μόνο στα τμήματα αυτών των τάξεων.</p>
+				<p class="description dgn-only-lyk">Η «Ιστορία» και τα «Μαθηματικά» της Γ΄ γενικής παιδείας δηλώνονται εδώ, ως μαθήματα του τμήματος, παρότι δεν τα παρακολουθούν όλοι οι μαθητές του.</p></td>
+			</tr>
+			<tr class="dgn-groups-row dgn-only-lyk">
+				<th scope="row">Ομάδες προσανατολισμού</th>
+				<td>
+					<div class="dgn-groups-info"><strong>Πώς λειτουργούν οι ομάδες.</strong> Κάθε γενικό τμήμα έχει κοινούς μαθητές με όλες τις ομάδες της τάξης του. Γι' αυτό, σε κάθε τάξη, μια ημέρα είναι ή ημέρα διαγωνισμάτων των τμημάτων ή ημέρα διαγωνισμάτων των ομάδων, όχι και τα δύο. Το όριο των διαγωνισμάτων της εβδομάδας μετρά μαζί τα διαγωνίσματα του τμήματος και της ομάδας.</div>
+					<div id="<?php echo esc_attr( $id ); ?>groups" class="dgn-groups"><p class="description">Οι ομάδες εμφανίζονται όταν φορτώσει η σελίδα (χρειάζεται JavaScript).</p></div>
+					<p style="margin:10px 0 0"><button type="button" class="button" id="<?php echo esc_attr( $id ); ?>add-group">+ Προσθήκη ομάδας</button></p>
+					<?php if ( ! $ex ) { dgn_admin_group_warnings( $s, $form_groups ); } ?>
+					<p class="description">Στον πίνακα κάθε ομάδα εμφανίζεται ως στήλη με την τάξη και το σύντομο όνομά της, π.χ. <code>Β·ΘΕΤ</code>, μετά τα τμήματα της τάξης. Τα ίδια μαθήματα (π.χ. «Φυσική», «Ιστορία») μπορούν να υπάρχουν και στα γενικά μαθήματα και σε μια ομάδα: το τμήμα ή η ομάδα της δήλωσης δείχνει ποιο εννοείται. Αν αλλάξετε την τάξη ή το σύντομο όνομα μιας ομάδας, οι δηλώσεις της μένουν με το παλιό όνομα.</p>
+				</td>
+			</tr>
+	<?php
+}
+
+/** Η κάρτα μιας ομάδας προσανατολισμού (κοινή για Ρυθμίσεις και Παράδειγμα, 1.12.0). Χωρίς name: τα ονόματα τα βάζει μόνο η φόρμα των Ρυθμίσεων. */
+function dgn_admin_group_card_js() {
+	?>
+	<script>
+	window.dgnGroupCard = window.dgnGroupCard || ( function () {
+		var GRADES = [ 'Α', 'Β', 'Γ', 'Δ' ], uid = 0;
+		function mk( tag, attrs ) {
+			var n = document.createElement( tag );
+			Object.keys( attrs || {} ).forEach( function ( k ) { if ( k === 'text' ) n.textContent = attrs[ k ]; else n.setAttribute( k, attrs[ k ] ); } );
+			return n;
+		}
+		return function ( g, onRemove ) {
+			var id = 'dgn-g' + ( ++uid );
+			var c = mk( 'div', { 'class': 'dgn-group-card' } );
+			var topRow = mk( 'div', { 'class': 'dgn-group-top' } );
+			var fName = mk( 'div', { style: 'flex:1 1 200px' } ), fGrade = mk( 'div', { style: 'flex:0 0 64px' } ), fShort = mk( 'div', { style: 'flex:0 0 110px' } );
+			var name = mk( 'input', { type: 'text', id: id + 'n', maxlength: '40', 'data-f': 'name' } ); name.value = g.name || '';
+			var grade = mk( 'select', { id: id + 't', 'data-f': 'grade' } );
+			var grades = GRADES.slice(); if ( g.grade && grades.indexOf( g.grade ) === -1 ) grades.push( g.grade );
+			grades.forEach( function ( x ) { grade.appendChild( mk( 'option', { value: x, text: x } ) ); } );
+			grade.value = g.grade || 'Β';
+			var short = mk( 'input', { type: 'text', id: id + 's', maxlength: '5', 'data-f': 'short' } ); short.value = g.short || '';
+			fName.appendChild( mk( 'label', { 'for': id + 'n', text: 'Όνομα ομάδας' } ) ); fName.appendChild( name );
+			fGrade.appendChild( mk( 'label', { 'for': id + 't', text: 'Τάξη' } ) ); fGrade.appendChild( grade );
+			fShort.appendChild( mk( 'label', { 'for': id + 's', text: 'Σύντομο όνομα' } ) ); fShort.appendChild( short );
+			topRow.appendChild( fName ); topRow.appendChild( fGrade ); topRow.appendChild( fShort );
+			var preview = mk( 'p', { 'class': 'dgn-group-label', style: 'margin:6px 0 0' } );
+			function upd() { preview.textContent = 'Στον πίνακα: ' + grade.value + '·' + ( short.value.trim().toUpperCase() || '…' ); }
+			name.addEventListener( 'input', upd ); grade.addEventListener( 'change', upd ); short.addEventListener( 'input', upd ); upd();
+			var subj = mk( 'textarea', { id: id + 'm', rows: '4', 'data-f': 'subjects', placeholder: 'Ένα ανά γραμμή, με τη συντομογραφία:\nΦυσική | ΦΥΣ' } ); subj.value = g.subjects || '';
+			var del = mk( 'button', { type: 'button', 'class': 'dgn-group-del', text: 'Αφαίρεση ομάδας' } );
+			del.addEventListener( 'click', function () { c.parentNode.removeChild( c ); if ( onRemove ) onRemove(); } );
+			c.appendChild( topRow ); c.appendChild( preview );
+			c.appendChild( mk( 'label', { 'for': id + 'm', style: 'margin-top:10px', text: 'Μαθήματα της ομάδας' } ) );
+			c.appendChild( subj );
+			var p = mk( 'p', { style: 'margin:8px 0 0' } ); p.appendChild( del ); c.appendChild( p );
+			return c;
+		};
+	} )();
+	</script>
+	<?php
+}
+
+/**
+ * Καρτέλα «Παράδειγμα Λυκείου / Γυμνασίου» (1.12.0): η ενότητα 1 του ΑΛΛΟΥ τύπου, με τις προτεινόμενες λίστες,
+ * για να δει ο διαχειριστής τι προσφέρει το πρόσθετο σε αυτόν. Εμφανίζεται μόνο αφού ο τύπος οριστεί οριστικά.
+ * Δεν υπάρχει φόρμα ούτε κουμπί αποθήκευσης και τα πεδία δεν έχουν name: τίποτα δεν στέλνεται στον server.
+ */
+function dgn_admin_tab_example() {
+	$s = dgn_settings();
+	if ( ! dgn_type_locked( $s ) ) {
+		return;
+	}
+	$other = 'lyk' === $s['school_type'] ? 'gym' : 'lyk';
+	$rec   = dgn_recommended_lists()[ $other ];
+	$rec   = array(
+		'classes'  => (string) $rec['classes'],
+		'subjects' => (string) $rec['subjects'],
+		'groups'   => isset( $rec['groups'] ) && is_array( $rec['groups'] ) ? array_values( $rec['groups'] ) : array(),
+	);
+	$names = array( 'gym' => 'Γυμνάσιο', 'lyk' => 'Λύκειο' );
+	$in    = array( 'gym' => 'σε ένα Γυμνάσιο', 'lyk' => 'σε ένα Λύκειο' );
+	echo "\t";
+	dgn_admin_settings_css();
+	?>
+	<div class="dgn-settings dgn-example" data-type="<?php echo esc_attr( $other ); ?>">
+		<div class="dgn-example-note" style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px 16px;background:#fcf9e8;border:1px solid #f0d58c;border-left:4px solid #dba617;padding:10px 14px;margin:18px 0;max-width:1100px;box-sizing:border-box">
+			<p style="margin:0;flex:1 1 420px;max-width:860px"><strong>Παράδειγμα:</strong> το σχολείο σας είναι <?php echo esc_html( $names[ $s['school_type'] ] ); ?>. Εδώ βλέπετε πώς είναι η ενότητα 1 των Ρυθμίσεων <?php echo esc_html( $in[ $other ] ); ?>, με τις προτεινόμενες λίστες. <?php echo esc_html( 'lyk' === $other ? 'Μπορείτε να γράψετε και να προσθέσετε ή να αφαιρέσετε ομάδες.' : 'Μπορείτε να γράψετε στα πεδία.' ); ?> <strong>Δεν επηρεάζει τις ρυθμίσεις σας και δεν αποθηκεύεται τίποτα.</strong></p>
+			<button type="button" class="button" id="dgn-ex-reset">Επαναφορά παραδείγματος</button>
+		</div>
+		<div class="dgn-sec">
+			<h2 class="dgn-sec-h"><span class="dgn-n">1</span>Σχολείο <small>όπως <?php echo esc_html( $in[ $other ] ); ?></small></h2>
+			<table class="form-table" role="presentation">
+			<?php dgn_admin_section1_rows( $rec, $rec['groups'], true ); ?>
+			</table>
+		</div>
+	</div>
+	<?php dgn_admin_group_card_js(); ?>
+	<script>
+	/* Παράδειγμα (1.12.0): γέμισμα των πεδίων και «Επαναφορά παραδείγματος». Τίποτα δεν στέλνεται στον server. */
+	( function () {
+		var root = document.querySelector( '.dgn-example' );
+		if ( ! root || ! window.dgnGroupCard ) return;
+		var D = <?php echo wp_json_encode( $rec ); ?>;
+		var box = root.querySelector( '#dgn-ex-groups' ), add = root.querySelector( '#dgn-ex-add-group' );
+		var cl = root.querySelector( '#dgn-ex-classes' ), su = root.querySelector( '#dgn-ex-subjects' );
+		var reset = root.querySelector( '#dgn-ex-reset' );
+		if ( ! box || ! cl || ! su ) return;
+		// Πάντα από τις προτεινόμενες λίστες (και αν ο browser «θυμηθεί» τιμές μετά από ανανέωση).
+		function fill() {
+			cl.value = D.classes; su.value = D.subjects;
+			box.textContent = '';
+			D.groups.forEach( function ( g ) { box.appendChild( window.dgnGroupCard( g ) ); } );
+		}
+		fill();
+		if ( add ) add.addEventListener( 'click', function () {
+			var c = window.dgnGroupCard( { name: '', grade: 'Β', short: '', subjects: '' } );
+			box.appendChild( c );
+			c.querySelector( 'input' ).focus();
+		} );
+		if ( reset ) reset.addEventListener( 'click', fill );
 	} )();
 	</script>
 	<?php
