@@ -132,7 +132,7 @@
 .dgn-app .dgn-upcoming li:first-child { border-top: 0; }
 .dgn-app .dgn-up-date { font-weight: 700; min-width: 5.2em; font-variant-numeric: tabular-nums; }
 /* Πίνακας ενός τμήματος: χωρά στο κινητό, με πλήρη ονόματα μαθημάτων */
-.dgn-app table.dgn-grid.dgn-single { min-width: 0; }
+.dgn-app table.dgn-grid.dgn-single, .dgn-app table.dgn-grid.dgn-few { min-width: 0; }
 .dgn-app table.dgn-grid.dgn-single td.dgn-c > button { justify-content: flex-start; padding: 0 12px; font-size: 13px; text-align: left; }
 .dgn-app .dgn-tablebox { overflow-x: auto; border: 1px solid var(--dgn-line); border-radius: 12px; background: var(--dgn-surface); }
 .dgn-app .dgn-empty { padding: 24px 16px; color: var(--dgn-muted); }
@@ -169,6 +169,13 @@
 .dgn-app .dgn-grid td.dgn-full { background: repeating-linear-gradient(135deg, var(--dgn-full-soft) 0 6px, var(--dgn-surface) 6px 12px); }
 /* Καθηγητές: μελλοντικές μέρες που δεν δηλώνονται ακόμα (προθεσμία) — λεπτή γκρι διαγράμμιση. */
 .dgn-app .dgn-grid td.dgn-soon { background: repeating-linear-gradient(135deg, #dfe5e6 0 2px, #f7f9f9 2px 8px); }
+/* Ομάδες προσανατολισμού (1.11.0): γαλάζια επικεφαλίδα, μπλε διαγωνίσματα, κλειστά κελιά με λεπτή μπλε διαγράμμιση. */
+.dgn-app .dgn-grid thead th.dgn-gradeh { font-size: 11px; padding: 6px 2px; border-left: 1px solid var(--dgn-line); border-bottom: 1px solid var(--dgn-line); }
+.dgn-app .dgn-grid thead th.dgn-grph { background: #dde7f5; color: #2c4a7a; font-size: 12px; }
+.dgn-app .dgn-grid td.dgn-g.dgn-taken > button { background: #3d5a99; }
+.dgn-app .dgn-grid td.dgn-block { background: repeating-linear-gradient(45deg, #dfe6f2 0 2px, #f6f8fc 2px 7px); }
+.dgn-app .dgn-sw-grp { background: #3d5a99; border-color: #3d5a99; }
+.dgn-app .dgn-sw-block { background: repeating-linear-gradient(45deg, #dfe6f2 0 2px, #f6f8fc 2px 7px); }
 .dgn-app .dgn-grid td.dgn-off { background: var(--dgn-off); color: var(--dgn-muted); font-size: 12px; letter-spacing: .04em; height: 36px; border-left: 1px solid var(--dgn-line); text-align: left; padding-left: 14px; }
 .dgn-app .dgn-grid td.dgn-sel { outline: 3px solid var(--dgn-full); outline-offset: -3px; }
 .dgn-app .dgn-foot { font-size: 14px; color: var(--dgn-muted); }
@@ -257,7 +264,7 @@ body.dgn-page h1.dgn-centered-title {
   .dgn-credit.dgn-credit-corner {
     position: static !important;
     white-space: normal;
-    margin: 10px 12px 8px !important;
+    margin: 28px 12px 8px !important; /* χώρος από το κουμπί εισόδου/εξόδου (1.11.0) */
   }
   .dgn-credit a { display: inline-block; padding: 6px 0 !important; }
 }

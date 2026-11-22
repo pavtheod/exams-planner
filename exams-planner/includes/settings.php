@@ -17,7 +17,7 @@ function dgn_default_settings() {
 			// Τάξεις (3η στήλη) μόνο όπου το μάθημα δεν διδάσκεται σε όλες· ωρολόγιο πρόγραμμα Γυμνασίου, ΦΕΚ Β΄ 2132/09-04-2026.
 			'Αρχαία Ελληνική Γλώσσα | ΑΡΧ',
 			'Αρχαία Ελληνικά Κείμενα από Μετάφραση | ΜΤΦ',
-			'Νέα Ελληνική Γλώσσα | ΝΕΓ',
+			'Νέα Ελληνική Γλώσσα | ΓΛΣ',
 			'Νεοελληνική Λογοτεχνία | ΛΟΓ',
 			'Ιστορία | ΙΣΤ',
 			'Θρησκευτικά | ΘΡΗ',
@@ -56,7 +56,238 @@ function dgn_default_settings() {
 		'teachers'    => '',
 		'allow_past'  => 0,
 		'min_notice'  => 0,        // ελάχιστη προειδοποίηση σε εργάσιμες ημέρες (0 = χωρίς όριο)
+		// Τύπος σχολείου (από 1.11.0): '' = δεν έχει οριστεί, 'gym' = Γυμνάσιο, 'lyk' = Λύκειο.
+		// Ορίζεται μία φορά με «Επιβεβαίωση τύπου σχολείου» και μετά δεν αλλάζει.
+		'school_type'        => '',
+		'school_type_choice' => '', // η επιλογή της φόρμας πριν την επιβεβαίωση (για να ξανανοίγει ίδια)
+		// Ομάδες προσανατολισμού (Λύκειο): [ ['name' => 'Β Θετικών', 'grade' => 'Β', 'short' => 'ΘΕΤ', 'subjects' => "Φυσική | ΦΥΣ\n…"], … ].
+		// Στον πίνακα και στη βάση η ομάδα εμφανίζεται ως «Β·ΘΕΤ» (τάξη · σύντομο όνομα).
+		'groups'             => array(),
 	);
+}
+
+/**
+ * Προτεινόμενες λίστες ανά τύπο σχολείου. Γεμίζουν τη φόρμα των Ρυθμίσεων όταν επιλέγεται τύπος·
+ * αποθηκεύονται μόνο αν πατηθεί αποθήκευση ή επιβεβαίωση.
+ * Γυμνάσιο: ΦΕΚ Β΄ 2132/09-04-2026. Λύκειο: ΦΕΚ Β΄ 2106/09-04-2026 (ενδεικτικά 3 τμήματα ανά τάξη).
+ *
+ * @return array{gym: array, lyk: array}
+ */
+function dgn_recommended_lists() {
+	$d = dgn_default_settings();
+	return array(
+		'gym' => array(
+			'classes'  => $d['classes'],
+			'subjects' => $d['subjects'],
+			'groups'   => array(),
+		),
+		'lyk' => array(
+			'classes'  => "Α1\nΑ2\nΑ3\nΒ1\nΒ2\nΒ3\nΓ1\nΓ2\nΓ3",
+			'subjects' => implode( "\n", array(
+				'Αρχαία Ελληνική Γλώσσα και Γραμματεία | ΑΡΧ | Α, Β',
+				'Νεοελληνική Γλώσσα και Λογοτεχνία | ΓΛΣ',
+				'Άλγεβρα | ΑΛΓ | Α, Β',
+				'Γεωμετρία | ΓΕΩΜ | Α, Β',
+				'Φυσική | ΦΥΣ | Α, Β',
+				'Χημεία | ΧΗΜ | Α, Β',
+				'Βιολογία | ΒΙΟ | Α, Β',
+				'Μαθηματικά | ΜΑΘ | Γ',
+				'Ιστορία | ΙΣΤ | Α, Β, Γ',
+				'Φιλοσοφία | ΦΙΛ | Β',
+				'Θρησκευτικά | ΘΡΗ',
+				'Αγγλικά | ΑΓΓ',
+				'Γαλλικά | ΓΑΛ | Α, Β',
+				'Γερμανικά | ΓΕΡ | Α, Β',
+				'Πολιτική Παιδεία | ΠΟΛ | Α',
+				'Εφαρμογές Πληροφορικής | ΕΦΠ | Α',
+				'Εισαγωγή στις Αρχές της Επιστήμης των Η/Υ | ΕΑΗΥ | Β',
+			) ),
+			'groups'   => array(
+				array( 'name' => 'Β Ανθρωπιστικών', 'grade' => 'Β', 'short' => 'ΑΝΘ', 'subjects' => "Αρχαία Ελληνική Γλώσσα και Γραμματεία | ΑΡΧ\nΛατινικά | ΛΑΤ" ),
+				array( 'name' => 'Β Θετικών', 'grade' => 'Β', 'short' => 'ΘΕΤ', 'subjects' => "Φυσική | ΦΥΣ\nΜαθηματικά | ΜΑΘ" ),
+				array( 'name' => 'Γ Ανθρωπιστικών', 'grade' => 'Γ', 'short' => 'ΑΝΘ', 'subjects' => "Αρχαία Ελληνικά | ΑΡΕ\nΙστορία | ΙΣΤ\nΛατινικά | ΛΑΤ" ),
+				array( 'name' => 'Γ Θετικών και Υγείας', 'grade' => 'Γ', 'short' => 'ΘΕΤ', 'subjects' => "Φυσική | ΦΥΣ\nΧημεία | ΧΗΜ\nΜαθηματικά | ΜΑΘ\nΒιολογία | ΒΙΟ" ),
+				array( 'name' => 'Γ Οικονομίας και Πληροφορικής', 'grade' => 'Γ', 'short' => 'ΟΙΠ', 'subjects' => "Μαθηματικά | ΜΑΘ\nΠληροφορική | ΠΛΗ\nΟικονομία | ΟΙΚΟ" ),
+			),
+		),
+	);
+}
+
+/**
+ * Ο τύπος για την εμφάνιση των Ρυθμίσεων: ο οριστικός, αλλιώς η επιλογή της φόρμας, αλλιώς Γυμνάσιο
+ * (όπως λειτουργούσε το πρόσθετο πριν την 1.11.0).
+ */
+function dgn_effective_type( $s = null ) {
+	$s = $s ? $s : dgn_settings();
+	if ( in_array( $s['school_type'], array( 'gym', 'lyk' ), true ) ) {
+		return $s['school_type'];
+	}
+	return 'lyk' === $s['school_type_choice'] ? 'lyk' : 'gym';
+}
+
+/** Ο τύπος έχει οριστεί οριστικά; */
+function dgn_type_locked( $s = null ) {
+	$s = $s ? $s : dgn_settings();
+	return in_array( $s['school_type'], array( 'gym', 'lyk' ), true );
+}
+
+/** Καθαρισμός μίας ομάδας (από τη φόρμα ή από τη βάση). null = κενή (αγνοείται). */
+function dgn_clean_group( $g ) {
+	if ( ! is_array( $g ) ) {
+		return null;
+	}
+	$name     = trim( preg_replace( '/\s+/u', ' ', sanitize_text_field( isset( $g['name'] ) ? (string) $g['name'] : '' ) ) );
+	$grade    = dgn_class_grade( isset( $g['grade'] ) ? (string) $g['grade'] : '' );
+	$short    = preg_replace( '/[\s·|]+/u', '', sanitize_text_field( isset( $g['short'] ) ? (string) $g['short'] : '' ) );
+	$subjects = sanitize_textarea_field( isset( $g['subjects'] ) ? (string) $g['subjects'] : '' );
+	if ( '' === $name && '' === $short && '' === trim( $subjects ) ) {
+		return null;
+	}
+	$name = mb_substr( $name, 0, 40 );
+	if ( '' === $short ) {
+		// Χωρίς σύντομο όνομα: τα 3 πρώτα γράμματα της 2ης λέξης («Β Θετικών» → ΘΕΤ), αλλιώς του ονόματος.
+		$words = preg_split( '/\s+/u', $name );
+		$base  = count( $words ) > 1 && 1 === mb_strlen( $words[0] ) ? $words[1] : $name;
+		$short = mb_substr( $base, 0, 3 );
+	}
+	$short = strtr( mb_strtoupper( mb_substr( $short, 0, 5 ) ), array( 'Ά' => 'Α', 'Έ' => 'Ε', 'Ή' => 'Η', 'Ί' => 'Ι', 'Ό' => 'Ο', 'Ύ' => 'Υ', 'Ώ' => 'Ω' ) );
+	if ( '' === $grade ) {
+		$grade = 'Β';
+	}
+	if ( '' === $short ) {
+		$short = 'ΟΜ';
+	}
+	if ( '' === $name ) {
+		$name = $grade . ' ' . $short;
+	}
+	return array(
+		'name'     => $name,
+		'grade'    => $grade,
+		'short'    => $short,
+		'subjects' => $subjects,
+	);
+}
+
+/** Ετικέτα ομάδας στον πίνακα και στη βάση: «Β·ΘΕΤ» (έως 7 χαρακτήρες· η στήλη της βάσης δέχεται 20). */
+function dgn_group_label( $g ) {
+	return $g['grade'] . '·' . $g['short'];
+}
+
+/**
+ * Οι ενεργές ομάδες προσανατολισμού, με κλειδί την ετικέτα τους («Β·ΘΕΤ»).
+ * Μια ομάδα αγνοείται (με προειδοποίηση στις Ρυθμίσεις) αν η ετικέτα της συμπίπτει με τμήμα
+ * ή με προηγούμενη ομάδα: έτσι μια δήλωση δεν είναι ποτέ διφορούμενη.
+ *
+ * @return array<string, array{label:string,name:string,grade:string,short:string,subjects:array<string,string>}>
+ */
+function dgn_groups( $s = null ) {
+	$s = $s ? $s : dgn_settings();
+	if ( empty( $s['groups'] ) || ! is_array( $s['groups'] ) ) {
+		return array();
+	}
+	$classes = dgn_classes( $s );
+	$out     = array();
+	foreach ( $s['groups'] as $g ) {
+		$g = dgn_clean_group( $g );
+		if ( ! $g ) {
+			continue;
+		}
+		$label = dgn_group_label( $g );
+		if ( isset( $out[ $label ] ) || in_array( $label, $classes, true ) ) {
+			continue;
+		}
+		$subj = array();
+		foreach ( preg_split( '/\R/u', (string) $g['subjects'] ) as $line ) {
+			list( $name, $abbr ) = dgn_subject_line( $line );
+			if ( '' !== $name ) {
+				$subj[ $name ] = $abbr;
+			}
+		}
+		$out[ $label ] = array(
+			'label'    => $label,
+			'name'     => $g['name'],
+			'grade'    => $g['grade'],
+			'short'    => $g['short'],
+			'subjects' => $subj,
+		);
+	}
+	return $out;
+}
+
+/** Όλες οι μονάδες που δέχονται δηλώσεις: τα τμήματα και οι ομάδες. */
+function dgn_units( $s = null ) {
+	$s = $s ? $s : dgn_settings();
+	return array_merge( dgn_classes( $s ), array_keys( dgn_groups( $s ) ) );
+}
+
+/**
+ * Σειρά στηλών στον πίνακα: τα τμήματα με τη σειρά των ρυθμίσεων, και οι ομάδες κάθε τάξης
+ * αμέσως μετά το τελευταίο τμήμα της τάξης τους. Ομάδες τάξης χωρίς τμήματα: στο τέλος.
+ */
+function dgn_units_ordered( $s = null ) {
+	$s       = $s ? $s : dgn_settings();
+	$classes = dgn_classes( $s );
+	$bygrade = array();
+	foreach ( dgn_groups( $s ) as $label => $g ) {
+		$bygrade[ $g['grade'] ][] = $label;
+	}
+	$lastof = array();
+	foreach ( $classes as $i => $c ) {
+		$lastof[ dgn_class_grade( $c ) ] = $i;
+	}
+	$out = array();
+	foreach ( $classes as $i => $c ) {
+		$out[] = $c;
+		$g     = dgn_class_grade( $c );
+		if ( '' !== $g && $lastof[ $g ] === $i && isset( $bygrade[ $g ] ) ) {
+			$out = array_merge( $out, $bygrade[ $g ] );
+			unset( $bygrade[ $g ] );
+		}
+	}
+	foreach ( $bygrade as $labels ) {
+		$out = array_merge( $out, $labels );
+	}
+	return $out;
+}
+
+/** Τα τμήματα μιας τάξης. */
+function dgn_classes_of_grade( $grade, $s = null ) {
+	if ( '' === (string) $grade ) {
+		return array();
+	}
+	return array_values( array_filter( dgn_classes( $s ), function ( $c ) use ( $grade ) {
+		return dgn_class_grade( $c ) === $grade;
+	} ) );
+}
+
+/** Οι ομάδες μιας τάξης (ετικέτες). */
+function dgn_groups_of_grade( $grade, $s = null ) {
+	$out = array();
+	if ( '' === (string) $grade ) {
+		return $out;
+	}
+	foreach ( dgn_groups( $s ) as $label => $g ) {
+		if ( $g['grade'] === $grade ) {
+			$out[] = $label;
+		}
+	}
+	return $out;
+}
+
+/** Μαθήματα μιας μονάδας: για τμήμα τα γενικά της τάξης του, για ομάδα τα δικά της. [όνομα => συντομογραφία] */
+function dgn_unit_subjects( $unit, $s = null ) {
+	$s      = $s ? $s : dgn_settings();
+	$groups = dgn_groups( $s );
+	if ( isset( $groups[ $unit ] ) ) {
+		return $groups[ $unit ]['subjects'];
+	}
+	$out = array();
+	foreach ( dgn_subjects( $s ) as $name => $abbr ) {
+		if ( dgn_subject_allowed( $name, $unit, $s ) ) {
+			$out[ $name ] = $abbr;
+		}
+	}
+	return $out;
 }
 
 function dgn_settings() {

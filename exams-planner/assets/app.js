@@ -14,6 +14,18 @@
     host.appendChild(credit);
     if (window.getComputedStyle(host).position === 'static') host.classList.add('dgn-credit-host');
     credit.classList.add('dgn-credit-corner');
+    // Κινητό (1.11.0): το υποσέλιδο μένει στη ροή (πιάνει δύο γραμμές), αλλά κατεβαίνει μέσα στο κάτω/δεξί περιθώριο
+    // του <article>, ώστε να απέχει 6px από κάτω και 12px από δεξιά, όπως στον υπολογιστή (όχι κενό από κάτω).
+    function fitCredit() {
+      credit.style.removeProperty('margin-bottom');
+      credit.style.removeProperty('margin-right');
+      if (window.getComputedStyle(credit).position !== 'static') return; // υπολογιστής: ήδη στη γωνία
+      var cs = window.getComputedStyle(host), pb = parseFloat(cs.paddingBottom) || 0, pr = parseFloat(cs.paddingRight) || 0;
+      if (pb > 6) credit.style.setProperty('margin-bottom', (6 - pb) + 'px', 'important');
+      if (pr > 12) credit.style.setProperty('margin-right', (12 - pr) + 'px', 'important');
+    }
+    fitCredit();
+    window.addEventListener('resize', fitCredit);
   })();
 
   /* Ανθεκτικότητα σε cache: αν η σελίδα σερβιριστεί από παλιότερη αποθηκευμένη έκδοση,
@@ -26,11 +38,31 @@
       cfg.syStart = start + '-09-01'; cfg.syEnd = (start + 1) + '-06-30';
     }
     cfg.classes = cfg.classes || [];
+    cfg.groups = cfg.groups || {};
+    cfg.units = cfg.units || cfg.classes;
     cfg.subjects = cfg.subjects || {};
     cfg.holidays = cfg.holidays || {};
     cfg.weeklyMax = cfg.weeklyMax || 3;
     cfg.access = cfg.access || 'code';
   })();
+
+  /* ---------- ομάδες προσανατολισμού (Λύκειο, 1.11.0) ----------
+     Κάθε τμήμα έχει κοινούς μαθητές με κάθε ομάδα της τάξης του. Χωρίς ομάδες όλα λειτουργούν όπως πριν. */
+  var HAS_GROUPS = Object.keys(cfg.groups).length > 0;
+  function isGroup(u) { return Object.prototype.hasOwnProperty.call(cfg.groups, u); }
+  function gradeOf(u) { return isGroup(u) ? cfg.groups[u].grade : ((cfg.clsGrades || {})[u] || ''); }
+  // Οι «αντίθετες» μονάδες: για τμήμα οι ομάδες της τάξης του, για ομάδα τα τμήματα της τάξης της.
+  function overlaps(u) {
+    var g = gradeOf(u);
+    if (!g) return [];
+    if (isGroup(u)) return cfg.classes.filter(function (c) { return gradeOf(c) === g; });
+    return Object.keys(cfg.groups).filter(function (x) { return cfg.groups[x].grade === g; });
+  }
+  function unitName(u) { return isGroup(u) ? u + ' (' + cfg.groups[u].name + ')' : u; }
+  function abbrOf(e) {
+    var map = isGroup(e.cls) ? cfg.groups[e.cls].subjects : cfg.subjects;
+    return (map && map[e.subject]) || e.subject.slice(0, 3).toUpperCase();
+  }
 
   var MONTHS = ['Ιανουάριος', 'Φεβρουάριος', 'Μάρτιος', 'Απρίλιος', 'Μάιος', 'Ιούνιος', 'Ιούλιος', 'Αύγουστος', 'Σεπτέμβριος', 'Οκτώβριος', 'Νοέμβριος', 'Δεκέμβριος'];
   var DAYS = ['ΔΕΥ', 'ΤΡΙ', 'ΤΕΤ', 'ΠΕΜ', 'ΠΑΡ'];
@@ -78,7 +110,7 @@
   // Κάθε επίσκεψη ανοίγει με «Όλα τα τμήματα». Μόνο ένας σύνδεσμος ?tmima=Β2 ανοίγει απευθείας σε τμήμα.
   (function initFilter() {
     var v = new URLSearchParams(window.location.search).get('tmima') || '';
-    state.filter = cfg.classes.indexOf(v) !== -1 ? v : '';
+    state.filter = cfg.units.indexOf(v) !== -1 ? v : '';
     lsSet('dgn_filter', null); // καθαρισμός από παλαιότερες εκδόσεις που θυμούνταν το τμήμα
   })();
   var SSO = cfg.access === 'sso';
@@ -257,10 +289,15 @@
   // Κανόνες: ετικέτα αριστερά και οι κανόνες ο ένας κάτω από τον άλλο, στοιχισμένοι (το σύνολο στο κέντρο).
   var notice = +cfg.minNotice || 0; // ελάχιστη προθεσμία δήλωσης σε εργάσιμες (0 = χωρίς όριο, χωρίς γραμμή)
   var ruleRows = [
-    el('span', { class: 'dgn-rule-label', text: notice > 0 ? 'Κανόνες:' : 'Κανόνας:' }),
+    el('span', { class: 'dgn-rule-label', text: notice > 0 || HAS_GROUPS ? 'Κανόνες:' : 'Κανόνας:' }),
     el('span', null, [el('strong', { text: '1 διαγώνισμα την ημέρα' }), ' και ',
-      el('strong', { text: 'έως ' + cfg.weeklyMax + ' την εβδομάδα' }), ' ανά τμήμα.'])
+      el('strong', { text: 'έως ' + cfg.weeklyMax + ' την εβδομάδα' }),
+      HAS_GROUPS ? ' ανά μαθητή (τμήμα και ομάδα προσανατολισμού μαζί).' : ' ανά τμήμα.'])
   ];
+  if (HAS_GROUPS) {
+    ruleRows.push(el('span'));
+    ruleRows.push(el('span', null, ['Σε κάθε τάξη, μια ημέρα είναι ', el('strong', { text: 'ή των τμημάτων ή των ομάδων' }), '.']));
+  }
   if (notice > 0) {
     ruleRows.push(el('span'));
     ruleRows.push(el('span', null, ['Προθεσμία δήλωσης ',
@@ -281,11 +318,14 @@
   var legend = el('div', { class: 'dgn-legend', hidden: true }, [
     el('span', null, [el('i', { class: 'dgn-sw dgn-sw-mine' }), 'Δική σας δήλωση']),
     el('span', null, [el('i', { class: 'dgn-sw dgn-sw-full' }), 'Εβδομάδα πλήρης']),
+    // Με ομάδες προσανατολισμού: διαγωνίσματα ομάδων και ημέρες κλειστές για την άλλη κατηγορία.
+    HAS_GROUPS ? el('span', null, [el('i', { class: 'dgn-sw dgn-sw-grp' }), 'Διαγώνισμα ομάδας']) : null,
+    HAS_GROUPS ? el('span', null, [el('i', { class: 'dgn-sw dgn-sw-block' }), 'Κλειστό: η τάξη έχει διαγώνισμα της άλλης κατηγορίας']) : null,
     // Γκρι διαγράμμιση: μέρες που δεν δηλώνονται ακόμα λόγω προθεσμίας (μόνο αν υπάρχει προθεσμία, όχι για τη Διεύθυνση).
     el('span', { class: 'dgn-lg-soon', hidden: true }, [el('i', { class: 'dgn-sw dgn-sw-soon' }), 'Εκτός προθεσμίας'])
   ]);
   var filterSel = el('select', { id: 'dgn-filter', 'aria-label': 'Επιλογή τμήματος' }, [el('option', { value: '', text: 'Όλα τα τμήματα' })]);
-  cfg.classes.forEach(function (c) { filterSel.appendChild(el('option', { value: c, text: 'Τμήμα ' + c })); });
+  fillUnitOptions(filterSel, function (c) { return 'Τμήμα ' + c; }, function (g) { return g + ' · ' + cfg.groups[g].name; });
   filterSel.value = state.filter;
   filterSel.addEventListener('change', function () { setFilter(filterSel.value); });
   // Επισκέπτες με «Όλα τα τμήματα»: μικρή υπόδειξη κάτω από το μενού (κρύβεται μόλις επιλεγεί τμήμα).
@@ -336,9 +376,26 @@
     }).observe(root);
   }
 
+  /* Επιλογές τμήματος: με ομάδες προσανατολισμού σε δύο ομάδες επιλογών (Γενικά τμήματα / Ομάδες). */
+  function fillUnitOptions(sel, clsText, grpText) {
+    if (!HAS_GROUPS) {
+      cfg.classes.forEach(function (c) { sel.appendChild(el('option', { value: c, text: clsText(c) })); });
+      return;
+    }
+    var og1 = el('optgroup', { label: 'Γενικά τμήματα' }), og2 = el('optgroup', { label: 'Ομάδες προσανατολισμού' });
+    cfg.classes.forEach(function (c) { og1.appendChild(el('option', { value: c, text: clsText(c) })); });
+    cfg.units.forEach(function (u) { if (isGroup(u)) og2.appendChild(el('option', { value: u, text: grpText(u) })); });
+    sel.appendChild(og1); sel.appendChild(og2);
+  }
+
   /* ---------- φίλτρο τμήματος ---------- */
+  // Μονάδες που εμφανίζονται: όλες, ή το επιλεγμένο τμήμα μαζί με τις ομάδες της τάξης του (κοινοί μαθητές).
+  function shownUnits() {
+    if (!state.filter) return cfg.units;
+    return isGroup(state.filter) ? [state.filter] : [state.filter].concat(overlaps(state.filter));
+  }
   function setFilter(c) {
-    state.filter = cfg.classes.indexOf(c) !== -1 ? c : '';
+    state.filter = cfg.units.indexOf(c) !== -1 ? c : '';
     state.calOpen = false;
     filterSel.value = state.filter;
     if (f.cls && state.filter) { f.cls.value = state.filter; fillSubjects(); }
@@ -352,7 +409,8 @@
     if (from > cfg.syEnd) { state.upcoming = []; renderUpcoming(); return; }
     api('GET', 'exams', { params: { from: from, to: cfg.syEnd, cls: want } }).then(function (data) {
       if (want !== state.filter) return;
-      state.upcoming = (data.exams || []).filter(function (e) { return e.cls === want; });
+      var set = shownUnits(); // το τμήμα και οι ομάδες της τάξης του
+      state.upcoming = (data.exams || []).filter(function (e) { return set.indexOf(e.cls) !== -1; });
       renderUpcoming();
     }).catch(function () { state.upcoming = null; renderUpcoming(); });
   }
@@ -363,12 +421,14 @@
     upcomingBox.textContent = '';
     if (!state.filter) { upcomingBox.hidden = true; return; }
     upcomingBox.hidden = false;
-    upcomingBox.appendChild(el('h4', { text: 'Επόμενα διαγωνίσματα · ' + state.filter }));
+    upcomingBox.appendChild(el('h4', { text: 'Επόμενα διαγωνίσματα · ' + unitName(state.filter) }));
     if (state.upcoming === null) { upcomingBox.appendChild(el('p', { class: 'dgn-hint', text: 'Φόρτωση…' })); return; }
     if (!state.upcoming.length) { upcomingBox.appendChild(el('p', { class: 'dgn-hint', text: 'Δεν έχουν δηλωθεί διαγωνίσματα για τις επόμενες ημέρες.' })); return; }
     var ul = el('ul');
     state.upcoming.forEach(function (e) {
-      ul.appendChild(el('li', null, [el('span', { class: 'dgn-up-date', title: longDate(e.date), text: upDate(e.date) }), el('span', { class: 'dgn-up-subj', text: e.subject + (e.teacher ? ' · ' + e.teacher : '') })]));
+      // Διαγώνισμα ομάδας μέσα στη λίστα ενός τμήματος: με την ετικέτα της ομάδας (αφορά όσους μαθητές είναι σε αυτήν).
+      var tag = e.cls !== state.filter ? ' · ομάδα ' + e.cls : '';
+      ul.appendChild(el('li', null, [el('span', { class: 'dgn-up-date', title: longDate(e.date), text: upDate(e.date) }), el('span', { class: 'dgn-up-subj', text: e.subject + tag + (e.teacher ? ' · ' + e.teacher : '') })]));
     });
     upcomingBox.appendChild(ul);
   }
@@ -400,7 +460,7 @@
     }
 
     f.cls = el('select', { id: 'dgn-cls' });
-    cfg.classes.forEach(function (c) { f.cls.appendChild(el('option', { value: c, text: c })); });
+    fillUnitOptions(f.cls, function (c) { return c; }, function (g) { return g + ' · ' + cfg.groups[g].name; });
     if (state.filter) f.cls.value = state.filter;
     f.date = el('input', { id: 'dgn-date', type: 'date', required: true });
     if (!isAdmin()) {
@@ -439,15 +499,18 @@
     var g = (cfg.clsGrades || {})[c] || '', list = (cfg.subjGrades || {})[s];
     return !list || !g || list.indexOf(g) !== -1;
   }
+  // Ομάδα προσανατολισμού: μόνο τα μαθήματα της ομάδας.
+  function unitSubjects(c) {
+    if (isGroup(c)) return Object.keys(cfg.groups[c].subjects || {});
+    return Object.keys(cfg.subjects).filter(function (s) { return subjectAllowed(s, c); });
+  }
   function fillSubjects() {
     if (!f.subj || !f.cls) return;
-    var prev = f.subj.value, c = f.cls.value;
+    var prev = f.subj.value, list = unitSubjects(f.cls.value);
     f.subj.textContent = '';
     f.subj.appendChild(el('option', { value: '', text: '— Επιλέξτε —' }));
-    Object.keys(cfg.subjects).forEach(function (s) {
-      if (subjectAllowed(s, c)) f.subj.appendChild(el('option', { value: s, text: s }));
-    });
-    f.subj.value = prev && subjectAllowed(prev, c) ? prev : '';
+    list.forEach(function (s) { f.subj.appendChild(el('option', { value: s, text: s })); });
+    f.subj.value = prev && list.indexOf(prev) !== -1 ? prev : '';
   }
 
   /* Πεδίο «Εκπαιδευτικός» (επώνυμο): λίστα επιλογής όταν η Διεύθυνση έχει ορίσει καθηγητές, αλλιώς ελεύθερο κείμενο. */
@@ -532,6 +595,18 @@
     var n = 0;
     for (var i = 0; i < 5; i++) if (state.exams[cls + '|' + ymd(addDays(wkStart, i))]) n++;
     return n;
+  }
+  // Πλήρης εβδομάδα: της ίδιας της μονάδας, ή (με ομάδες) μονάδα + η «αντίθετη» με τα περισσότερα (ίδιος κανόνας με τον server).
+  function weekFull(cls, wkStart) {
+    var n = weekCount(cls, wkStart), top = 0;
+    overlaps(cls).forEach(function (o) { top = Math.max(top, weekCount(o, wkStart)); });
+    return n >= cfg.weeklyMax || n + top >= cfg.weeklyMax;
+  }
+  // Κλειστή ημέρα: η τάξη έχει ήδη διαγώνισμα της άλλης κατηγορίας (τμήματος ↔ ομάδας). Επιστρέφει τη μονάδα ή ''.
+  function dayClash(cls, ds) {
+    var o = overlaps(cls);
+    for (var i = 0; i < o.length; i++) if (state.exams[o[i] + '|' + ds]) return o[i];
+    return '';
   }
   function isPast(ds) { return ds < cfg.today; }
   // Ελάχιστη προειδοποίηση σε εργάσιμες ημέρες (ίδιος υπολογισμός με τον server).
@@ -668,12 +743,28 @@
       renderDetail();
       return;
     }
-    var shown = state.filter ? [state.filter] : cfg.classes;
+    var shown = shownUnits();
     var single = shown.length === 1;
-    var table = el('table', { class: 'dgn-grid' + (single ? ' dgn-single' : '') });
+    // Επιλεγμένο τμήμα με τις ομάδες της τάξης του (λίγες στήλες): ο πίνακας χωράει στην οθόνη, χωρίς οριζόντια κύλιση.
+    var few = !single && !!state.filter;
+    var table = el('table', { class: 'dgn-grid' + (single ? ' dgn-single' : '') + (few ? ' dgn-few' : '') + (HAS_GROUPS ? ' dgn-has-groups' : '') });
     var thead = el('thead');
-    var hr = el('tr', null, [el('th', { scope: 'col', text: 'ΕΒΔ' }), el('th', { scope: 'col', class: 'dgn-dayh', text: 'ΗΜΕΡΟΜ.' })]);
-    shown.forEach(function (c) { hr.appendChild(el('th', { scope: 'col', class: 'dgn-clsh', text: c })); });
+    // Με ομάδες προσανατολισμού: μια γραμμή επάνω με τις τάξεις (Α΄ τάξη, Β΄ τάξη…), ώστε να φαίνεται ποιες στήλες πάνε μαζί.
+    var gradeRow = HAS_GROUPS && !state.filter;
+    var hr = el('tr', null, [el('th', { scope: 'col', rowspan: gradeRow ? '2' : null, text: 'ΕΒΔ' }), el('th', { scope: 'col', rowspan: gradeRow ? '2' : null, class: 'dgn-dayh', text: 'ΗΜΕΡΟΜ.' })]);
+    if (gradeRow) {
+      var runs = [];
+      shown.forEach(function (c) {
+        var g = gradeOf(c);
+        if (runs.length && runs[runs.length - 1].g === g) runs[runs.length - 1].n++; else runs.push({ g: g, n: 1 });
+      });
+      runs.forEach(function (r) { hr.appendChild(el('th', { scope: 'colgroup', colspan: String(r.n), class: 'dgn-gradeh', text: r.g ? r.g + '΄ ΤΑΞΗ' : '' })); });
+      thead.appendChild(hr);
+      hr = el('tr');
+    }
+    shown.forEach(function (c) {
+      hr.appendChild(el('th', { scope: 'col', class: 'dgn-clsh' + (isGroup(c) ? ' dgn-grph' : ''), title: isGroup(c) ? 'Ομάδα προσανατολισμού: ' + cfg.groups[c].name : null, text: c }));
+    });
     thead.appendChild(hr); table.appendChild(thead);
     var tbody = el('tbody');
     var wn = 1;
@@ -693,9 +784,10 @@
         }
         shown.forEach(function (cls) {
           var key = cls + '|' + ds, e = state.exams[key];
-          var td = el('td', { class: 'dgn-c' });
-          // Οι ρίγες «εβδομάδα πλήρης» αφορούν μόνο όσους μπορούν να δηλώσουν.
-          var full = !e && canWrite() && weekCount(cls, wk) >= cfg.weeklyMax;
+          var td = el('td', { class: 'dgn-c' + (isGroup(cls) ? ' dgn-g' : '') });
+          // Οι ρίγες «εβδομάδα πλήρης» και τα κλειστά κελιά αφορούν μόνο όσους μπορούν να δηλώσουν.
+          var full = !e && canWrite() && weekFull(cls, wk);
+          var clash = !e && canWrite() ? dayClash(cls, ds) : '';
           var past = (isPast(ds) && !canBookPast()) || (!inSchoolYear(ds) && !isAdmin()) || tooSoon(ds);
           // «Κλειστές» μελλοντικές μέρες (προθεσμία δήλωσης ή εκτός σχολικής χρονιάς): διαγράμμιση μόνο για καθηγητές.
           // Οι περασμένες μέρες μένουν λευκές: είναι αυτονόητο ότι δεν δηλώνονται.
@@ -707,7 +799,7 @@
             // Περασμένα διαγωνίσματα (πριν από σήμερα): πιο αχνά, ώστε να ξεχωρίζουν τα επόμενα.
             td.className += ' dgn-taken' + (canWrite() && (e.mine || state.keys[e.id]) ? ' dgn-mine' : '') + (isPast(ds) ? ' dgn-past' : '');
             // Με ένα τμήμα υπάρχει χώρος για το πλήρες όνομα του μαθήματος.
-            var abbr = single ? e.subject : (cfg.subjects[e.subject] || e.subject.slice(0, 3).toUpperCase());
+            var abbr = single ? e.subject : abbrOf(e);
             label += e.subject + (e.teacher ? ', ' + e.teacher : '');
             if (canWrite()) {
               td.appendChild(el('button', { type: 'button', title: e.subject + (e.teacher ? ' · ' + e.teacher : ''), 'aria-label': label, text: abbr, onclick: cellClick.bind(null, cls, ds) }));
@@ -716,9 +808,14 @@
               // Κρατάμε <button> (χωρίς ενέργεια), ώστε το κελί να έχει ακριβώς την ίδια εμφάνιση σε κάθε θέμα.
               td.appendChild(el('button', { type: 'button', class: 'dgn-ro', tabindex: '-1', title: e.subject, 'aria-label': label, text: abbr }));
             }
+          } else if (clash) {
+            var why = isGroup(cls) ? 'Ημέρα διαγωνισμάτων γενικών τμημάτων της ' + gradeOf(cls) + '΄ τάξης (' + clash + ')'
+              : 'Ημέρα διαγωνισμάτων ομάδων προσανατολισμού της ' + gradeOf(cls) + '΄ τάξης (' + clash + ')';
+            td.className += ' dgn-block';
+            td.appendChild(el('span', { title: why, 'aria-label': label + why }));
           } else if (full) {
             td.className += ' dgn-full';
-            td.appendChild(el('span', { title: 'Η εβδομάδα είναι πλήρης για το ' + cls, 'aria-label': label + 'η εβδομάδα είναι πλήρης' }));
+            td.appendChild(el('span', { title: 'Η εβδομάδα είναι πλήρης για το ' + cls + (overlaps(cls).length ? ' (τμήμα και ομάδα μαζί)' : ''), 'aria-label': label + 'η εβδομάδα είναι πλήρης' }));
           } else if (!canWrite() || past || !state.loaded) {
             // Το γκρι «κλειστό για δήλωση» αφορά μόνο όσους δηλώνουν· οι επισκέπτες δεν το βλέπουν.
             td.className += ' dgn-free-ro' + (soon && canWrite() ? ' dgn-soon' : '');
@@ -745,8 +842,8 @@
     detail.hidden = false;
     // Σύντομο: «ΠΑΠΑΔΑΚΗ · Φυσική, Β2 · Τρί 6/10» — με έμφαση στο όνομα (το μόνο που δεν φαίνεται στον πίνακα).
     var p = el('p', null, e.teacher
-      ? [el('strong', { text: e.teacher }), ' · ' + e.subject + ', ' + e.cls + ' · ' + upDate(e.date)]
-      : [el('strong', { text: e.subject }), ', ' + e.cls + ' · ' + upDate(e.date)]);
+      ? [el('strong', { text: e.teacher }), ' · ' + e.subject + ', ' + unitName(e.cls) + ' · ' + upDate(e.date)]
+      : [el('strong', { text: e.subject }), ', ' + unitName(e.cls) + ' · ' + upDate(e.date)]);
     var actions = el('div', { class: 'dgn-actions' });
     // Οι καθηγητές διαγράφουν δικές τους δηλώσεις από σήμερα και μετά· περασμένες μόνο η Διεύθυνση.
     if (canWrite() && canDelete(e) && (isAdmin() || e.date >= cfg.today)) {

@@ -88,8 +88,16 @@ function dgn_rest_list( WP_REST_Request $r ) {
 	$to   = dgn_parse_date( (string) $r->get_param( 'to' ) );
 	// Φίλτρο τμήματος: επιτρέπει μεγαλύτερο εύρος (λίστα «Επόμενα διαγωνίσματα» ενός τμήματος).
 	$cls_filter = (string) $r->get_param( 'cls' );
-	if ( '' !== $cls_filter && ! in_array( $cls_filter, dgn_classes( $s ), true ) ) {
+	if ( '' !== $cls_filter && ! in_array( $cls_filter, dgn_units( $s ), true ) ) {
 		return dgn_err( 'dgn_cls', 'Άγνωστο τμήμα.', 400 );
+	}
+	// Τμήμα: μαζί και οι ομάδες προσανατολισμού της τάξης του (έχουν μαθητές του τμήματος).
+	$cls_set = array( $cls_filter );
+	if ( '' !== $cls_filter ) {
+		list( $is_group, $other ) = dgn_unit_overlaps( $cls_filter, $s );
+		if ( ! $is_group ) {
+			$cls_set = array_merge( $cls_set, $other );
+		}
 	}
 	$max_days = '' !== $cls_filter ? 320 : 70;
 	if ( ! $from || ! $to || $to < $from || $from->diff( $to )->days > $max_days ) {
@@ -97,8 +105,8 @@ function dgn_rest_list( WP_REST_Request $r ) {
 	}
 	$rows = dgn_exams_between( $from->format( 'Y-m-d' ), $to->format( 'Y-m-d' ) );
 	if ( '' !== $cls_filter ) {
-		$rows = array_values( array_filter( $rows, function ( $row ) use ( $cls_filter ) {
-			return $row['cls'] === $cls_filter;
+		$rows = array_values( array_filter( $rows, function ( $row ) use ( $cls_set ) {
+			return in_array( $row['cls'], $cls_set, true );
 		} ) );
 	}
 	$out  = array();
@@ -140,15 +148,23 @@ function dgn_rest_create( WP_REST_Request $r ) {
 	}
 
 	$cls = (string) $r->get_param( 'cls' );
-	if ( ! in_array( $cls, dgn_classes( $s ), true ) ) {
+	if ( ! in_array( $cls, dgn_units( $s ), true ) ) {
 		return dgn_err( 'dgn_cls', 'Άγνωστο τμήμα.', 400 );
 	}
 	$subject = (string) $r->get_param( 'subject' );
-	if ( ! array_key_exists( $subject, dgn_subjects( $s ) ) ) {
-		return dgn_err( 'dgn_subject', 'Επιλέξτε μάθημα από τη λίστα.', 400 );
-	}
-	if ( ! dgn_subject_allowed( $subject, $cls, $s ) ) {
-		return dgn_err( 'dgn_grade', 'Το μάθημα «' . $subject . '» δεν διδάσκεται στην ' . dgn_class_grade( $cls ) . '΄ τάξη.', 400 );
+	$groups  = dgn_groups( $s );
+	if ( isset( $groups[ $cls ] ) ) {
+		// Ομάδα προσανατολισμού: μόνο τα μαθήματα της ομάδας.
+		if ( ! array_key_exists( $subject, $groups[ $cls ]['subjects'] ) ) {
+			return dgn_err( 'dgn_subject', 'Επιλέξτε μάθημα της ομάδας ' . $groups[ $cls ]['name'] . ' από τη λίστα.', 400 );
+		}
+	} else {
+		if ( ! array_key_exists( $subject, dgn_subjects( $s ) ) ) {
+			return dgn_err( 'dgn_subject', 'Επιλέξτε μάθημα από τη λίστα.', 400 );
+		}
+		if ( ! dgn_subject_allowed( $subject, $cls, $s ) ) {
+			return dgn_err( 'dgn_grade', 'Το μάθημα «' . $subject . '» δεν διδάσκεται στην ' . dgn_class_grade( $cls ) . '΄ τάξη.', 400 );
+		}
 	}
 	$teacher = trim( sanitize_text_field( (string) $r->get_param( 'teacher' ) ) );
 	if ( '' === $teacher && $who['user_id'] ) {

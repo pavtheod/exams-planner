@@ -50,8 +50,8 @@ function dgn_admin_export() {
 		ARRAY_A
 	);
 
-	// Ταξινόμηση τμημάτων με τη σειρά των ρυθμίσεων (Α1, Α2 … Γ5), όχι αλφαβητικά.
-	$order = array_flip( dgn_classes() );
+	// Ταξινόμηση τμημάτων με τη σειρά των ρυθμίσεων (Α1, Α2 … Γ5), όχι αλφαβητικά· οι ομάδες μετά την τάξη τους.
+	$order = array_flip( dgn_units_ordered() );
 	usort( $rows, function ( $a, $b ) use ( $order ) {
 		if ( $a['exam_date'] !== $b['exam_date'] ) {
 			return strcmp( $a['exam_date'], $b['exam_date'] );

@@ -85,6 +85,11 @@ function dgn_shortcode() {
 		'school'     => '' !== trim( $s['school_name'] ) ? $s['school_name'] : get_bloginfo( 'name' ),
 		'pageTitle'  => wp_strip_all_tags( html_entity_decode( get_the_title(), ENT_QUOTES, 'UTF-8' ) ),
 		'classes'    => dgn_classes( $s ),
+		// Ομάδες προσανατολισμού (1.11.0): ετικέτα («Β·ΘΕΤ») => όνομα, τάξη, μαθήματα. Κενό = όπως πριν.
+		'groups'     => (object) array_map( function ( $g ) {
+			return array( 'name' => $g['name'], 'grade' => $g['grade'], 'subjects' => (object) $g['subjects'] );
+		}, dgn_groups( $s ) ),
+		'units'      => dgn_units_ordered( $s ), // σειρά στηλών: τμήματα και, μετά από κάθε τάξη, οι ομάδες της
 		'subjects'   => dgn_subjects( $s ),
 		'subjGrades' => (object) dgn_subject_grades( $s ), // μάθημα => τάξεις (όσα δεν αναφέρονται: όλες)
 		'clsGrades'  => (object) array_combine( dgn_classes( $s ), array_map( 'dgn_class_grade', dgn_classes( $s ) ) ),

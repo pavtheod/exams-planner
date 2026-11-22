@@ -117,6 +117,32 @@ function dgn_admin_save() {
 	$new['allow_past']  = 0; // καταργήθηκε (1.9.80): οι καθηγητές δεν δηλώνουν περασμένες ημερομηνίες
 	$new['min_notice']  = min( 30, max( 0, (int) ( isset( $in['min_notice'] ) ? $in['min_notice'] : 0 ) ) );
 
+	// Τύπος σχολείου (1.11.0). Ο οριστικός τύπος δεν αλλάζει ποτέ από τη φόρμα.
+	$type_set = false;
+	if ( ! dgn_type_locked( $old ) ) {
+		$choice = isset( $in['school_type'] ) && in_array( $in['school_type'], array( 'gym', 'lyk' ), true ) ? $in['school_type'] : (string) $old['school_type_choice'];
+		$new['school_type_choice'] = in_array( $choice, array( 'gym', 'lyk' ), true ) ? $choice : '';
+		if ( ! empty( $in['confirm_type'] ) && '' !== $new['school_type_choice'] ) {
+			$new['school_type'] = $new['school_type_choice'];
+			$type_set           = true;
+		}
+	}
+	// Ομάδες προσανατολισμού: μόνο αν η φόρμα τις έστειλε (το JS της σελίδας προσθέτει το groups_present).
+	// Έτσι, αν για κάποιο λόγο δεν φορτώσει το JS, οι αποθηκευμένες ομάδες δεν σβήνονται.
+	if ( ! empty( $in['groups_present'] ) ) {
+		$list = array();
+		foreach ( ( isset( $in['groups'] ) && is_array( $in['groups'] ) ? $in['groups'] : array() ) as $g ) {
+			$g = dgn_clean_group( $g );
+			if ( $g && count( $list ) < 30 ) {
+				$list[] = $g;
+			}
+		}
+		$new['groups'] = $list;
+	}
+	if ( 'gym' === dgn_effective_type( $new ) ) {
+		$new['groups'] = array(); // το Γυμνάσιο δεν έχει ομάδες προσανατολισμού
+	}
+
 	// Χωρίς sanitize_text_field: αφαιρεί σιωπηλά ακολουθίες όπως «%2a» και αλλάζει τον κωδικό.
 	// Ο κωδικός ελέγχεται με τους κανόνες του (μόνο εκτυπώσιμοι λατινικοί χαρακτήρες) και στην οθόνη περνά από esc_attr/esc_html.
 	$code = trim( isset( $in['code'] ) && is_string( $in['code'] ) ? $in['code'] : '' );
@@ -146,7 +172,11 @@ function dgn_admin_save() {
 		exit;
 	}
 	update_option( DGN_OPTION, $new, false );
-	wp_safe_redirect( dgn_admin_url( 'settings', array( 'dgn_msg' => $bad ? 'savedbad' : 'saved' ) ) );
+	$msg = $bad ? 'savedbad' : 'saved';
+	if ( $type_set ) {
+		$msg = ( 'lyk' === $new['school_type'] ? 'typelyk' : 'typegym' ) . ( $bad ? ',savedbad' : '' );
+	}
+	wp_safe_redirect( dgn_admin_url( 'settings', array( 'dgn_msg' => $msg ) ) );
 	exit;
 }
 
@@ -207,6 +237,8 @@ function dgn_admin_clear_log() {
 function dgn_admin_notice( $msg ) {
 	$map = array(
 		'saved'      => array( 'success', 'Οι ρυθμίσεις αποθηκεύτηκαν.' ),
+		'typegym'    => array( 'success', 'Ο τύπος σχολείου ορίστηκε οριστικά: Γυμνάσιο. Οι ρυθμίσεις αποθηκεύτηκαν.' ),
+		'typelyk'    => array( 'success', 'Ο τύπος σχολείου ορίστηκε οριστικά: Λύκειο. Οι ρυθμίσεις αποθηκεύτηκαν.' ),
 		'holfilled'  => array( 'success', 'Οι πανελλαδικές αργίες επαναφέρθηκαν για την τρέχουσα σχολική χρονιά.' ),
 		'savedbad'   => array( 'warning', 'Οι ρυθμίσεις αποθηκεύτηκαν, αλλά κάποιες γραμμές στις αργίες δεν αναγνωρίστηκαν και αγνοούνται (δείτε παρακάτω).' ),
 		'noclasses'  => array( 'error', 'Δεν αποθηκεύτηκε: γράψτε τουλάχιστον ένα τμήμα.' ),
@@ -353,10 +385,50 @@ function dgn_admin_tab_settings() {
 		.dgn-settings textarea.dgn-list, .dgn-settings input.regular-text { width: 31em; max-width: 100%; box-sizing: border-box; }
 		@media (max-width: 782px) { .dgn-settings textarea.dgn-list, .dgn-settings input.regular-text { width: 100%; } }
 		.dgn-settings details.dgn-notes summary { cursor: pointer; color: #2271b1; margin: 0 0 8px; }
+		/* Τύπος σχολείου (1.11.0): ό,τι αφορά μόνο τον έναν τύπο κρύβεται στον άλλον. */
+		.dgn-settings[data-type="gym"] .dgn-only-lyk, .dgn-settings[data-type="lyk"] .dgn-only-gym { display: none !important; }
+		.dgn-settings .dgn-typebox { background: #fff; border: 1px solid #c3c4c7; border-left: 4px solid #2271b1; padding: 12px 16px; margin: 18px 0; max-width: 1100px; box-sizing: border-box; }
+		.dgn-settings .dgn-typebox-h { margin: 0 0 8px; font-size: 15px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+		.dgn-settings .dgn-badge { font-size: 11px; font-weight: 600; background: #fcf9e8; border: 1px solid #dba617; color: #6b4e00; border-radius: 3px; padding: 1px 6px; }
+		.dgn-settings .dgn-type-radios label { display: inline-block; margin: 0 22px 6px 0; font-size: 14px; line-height: 2; }
+		.dgn-settings .dgn-type-text { margin: 6px 0 0; max-width: 900px; }
+		.dgn-settings .dgn-groups-info { background: #f0f6fc; border: 1px solid #c5d9ed; border-radius: 4px; padding: 10px 14px; margin: 0 0 14px; max-width: 720px; }
+		.dgn-settings .dgn-groups { display: flex; flex-wrap: wrap; gap: 16px; max-width: 900px; }
+		.dgn-settings .dgn-group-card { flex: 1 1 380px; min-width: 0; box-sizing: border-box; border: 1px solid #dcdcde; border-radius: 4px; padding: 12px 14px; background: #fff; }
+		.dgn-settings .dgn-group-top { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+		.dgn-settings .dgn-group-card label { display: block; font-weight: 600; font-size: 13px; margin: 0 0 4px; }
+		.dgn-settings .dgn-group-card input, .dgn-settings .dgn-group-card select, .dgn-settings .dgn-group-card textarea { width: 100%; box-sizing: border-box; }
+		.dgn-settings .dgn-group-card textarea { margin-top: 0; }
+		.dgn-settings .dgn-group-label { color: #646970; font-size: 12px; font-weight: 400; }
+		.dgn-settings .dgn-group-del { color: #b32d2e; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; font-size: 13px; }
 	</style>
-	<form class="dgn-settings" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+	<?php
+	$locked     = dgn_type_locked( $s );
+	$etype      = dgn_effective_type( $s );
+	$type_names = array( 'gym' => 'Γυμνάσιο', 'lyk' => 'Λύκειο' );
+	// Οι ομάδες όπως είναι αποθηκευμένες (και όσες αγνοούνται λόγω ίδιου ονόματος, για να φαίνονται και να διορθωθούν).
+	$form_groups = array_values( array_filter( array_map( 'dgn_clean_group', is_array( $s['groups'] ) ? $s['groups'] : array() ) ) );
+	?>
+	<form class="dgn-settings" data-type="<?php echo esc_attr( $etype ); ?>" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 		<input type="hidden" name="action" value="dgn_save">
 		<?php wp_nonce_field( 'dgn_save' ); ?>
+		<?php if ( $locked ) : ?>
+			<div class="dgn-typebox dgn-typebox-done">
+				<p style="margin:0"><strong>Τύπος σχολείου: <?php echo esc_html( $type_names[ $s['school_type'] ] ); ?></strong> (οριστικό)</p>
+				<p class="description" style="margin:4px 0 0">Ο τύπος δεν αλλάζει από εδώ. Αν ορίστηκε κατά λάθος, η αλλαγή γίνεται μόνο με διαγραφή του πρόσθετου με το τικ «Να σβήνονται όλα τα δεδομένα» (ενότητα 5) και νέα εγκατάσταση.</p>
+			</div>
+		<?php else : ?>
+			<div class="dgn-typebox">
+				<h2 class="dgn-typebox-h">Τύπος σχολείου <span class="dgn-badge">δεν έχει οριστεί · επιλέγεται μία φορά</span></h2>
+				<fieldset class="dgn-type-radios">
+					<label><input type="radio" name="school_type" value="gym" <?php checked( $etype, 'gym' ); ?>> Γυμνάσιο</label>
+					<label><input type="radio" name="school_type" value="lyk" <?php checked( $etype, 'lyk' ); ?>> Λύκειο</label>
+				</fieldset>
+				<p class="dgn-type-text"><strong class="dgn-only-gym">Γυμνάσιο:</strong><strong class="dgn-only-lyk">Λύκειο:</strong> όταν αλλάζετε την επιλογή, τα τμήματα και τα μαθήματα παρακάτω γεμίζουν με τα προτεινόμενα <span class="dgn-only-gym">του Γυμνασίου (ΦΕΚ Β΄ 2132/2026)</span><span class="dgn-only-lyk">του Λυκείου, με τις ομάδες προσανατολισμού (ΦΕΚ Β΄ 2106/2026)</span>. Μπορείτε να τα αλλάξετε ελεύθερα παρακάτω. Για να δείτε πώς αλλάζουν τα μαθήματα και τα τμήματα σε κάθε τύπο, δοκιμάστε τον έναν και μετά τον άλλον: δεν αποθηκεύεται τίποτα μέχρι να πατήσετε «Επιβεβαίωση τύπου σχολείου».</p>
+				<p class="dgn-type-text">Οι λίστες που έχετε ήδη δεν αλλάζουν αυτόματα: αλλάζουν μόνο αν αλλάξετε εσείς την επιλογή. Μετά την επιβεβαίωση ο τύπος δεν αλλάζει πια. Η επιβεβαίωση αποθηκεύει και <span class="dgn-only-gym">τα τμήματα και τα μαθήματα</span><span class="dgn-only-lyk">τα τμήματα, τα μαθήματα και τις ομάδες</span> που βλέπετε στην ενότητα 1.</p>
+				<p style="margin:10px 0 0"><button type="button" class="button button-primary" id="dgn-confirm-type">Επιβεβαίωση τύπου σχολείου</button></p>
+			</div>
+		<?php endif; ?>
 		<div class="dgn-sec">
 			<h2 class="dgn-sec-h"><span class="dgn-n">1</span>Σχολείο <small>τα βασικά στοιχεία του σχολείου σας</small></h2>
 			<table class="form-table" role="presentation">
@@ -368,15 +440,27 @@ function dgn_admin_tab_settings() {
 				</td>
 			</tr>
 			<tr>
-				<th scope="row"><label for="dgn-classes">Τμήματα</label></th>
+				<th scope="row"><label for="dgn-classes"><span class="dgn-only-gym">Τμήματα</span><span class="dgn-only-lyk">Γενικά τμήματα</span></label></th>
 				<td><textarea id="dgn-classes" name="classes" rows="8" class="dgn-list"><?php echo esc_textarea( $s['classes'] ); ?></textarea>
-				<p class="description">Ένα ανά γραμμή, με τη σειρά που θέλετε να εμφανίζονται.</p></td>
+				<?php dgn_admin_orphan_warnings( $s ); ?>
+				<p class="description">Ένα ανά γραμμή, με τη σειρά που θέλετε να εμφανίζονται. Το πρώτο γράμμα είναι η τάξη (Α, Β, Γ).<br>Αν μετονομάσετε ή αφαιρέσετε ένα τμήμα, οι δηλώσεις του μένουν με το παλιό όνομα και δεν φαίνονται πια στον πίνακα.</p></td>
 			</tr>
 			<tr>
-				<th scope="row"><label for="dgn-subjects">Μαθήματα και τάξεις</label></th>
+				<th scope="row"><label for="dgn-subjects"><span class="dgn-only-gym">Μαθήματα και τάξεις</span><span class="dgn-only-lyk">Μαθήματα γενικής παιδείας</span></label></th>
 				<td><textarea id="dgn-subjects" name="subjects" rows="12" class="dgn-list"><?php echo esc_textarea( $s['subjects'] ); ?></textarea>
 				<?php dgn_admin_subject_warnings( $s ); ?>
-				<p class="description">Ένα μάθημα ανά γραμμή, με τη συντομογραφία του (έως 5 γράμματα, φαίνεται στον πίνακα): <code>Μαθηματικά | ΜΑΘ</code>.<br>Αν ένα μάθημα διδάσκεται μόνο σε ορισμένες τάξεις, προσθέστε μία ακόμη κάθετο και τις τάξεις: <code>Χημεία | ΧΗΜ | Β, Γ</code>. Τότε το μάθημα εμφανίζεται μόνο στα τμήματα αυτών των τάξεων.</p></td>
+				<p class="description"><span class="dgn-only-lyk">Τα μαθήματα που διδάσκονται σε όλο το τμήμα. </span>Ένα μάθημα ανά γραμμή, με τη συντομογραφία του (έως 5 γράμματα, φαίνεται στον πίνακα): <code>Μαθηματικά | ΜΑΘ</code>.<br>Αν ένα μάθημα διδάσκεται μόνο σε ορισμένες τάξεις, προσθέστε μία ακόμη κάθετο και τις τάξεις: <code>Χημεία | ΧΗΜ | Β, Γ</code>. Τότε το μάθημα εμφανίζεται μόνο στα τμήματα αυτών των τάξεων.</p>
+				<p class="description dgn-only-lyk">Η «Ιστορία» και τα «Μαθηματικά» της Γ΄ γενικής παιδείας δηλώνονται εδώ, ως μαθήματα του τμήματος, παρότι δεν τα παρακολουθούν όλοι οι μαθητές του.</p></td>
+			</tr>
+			<tr class="dgn-groups-row dgn-only-lyk">
+				<th scope="row">Ομάδες προσανατολισμού</th>
+				<td>
+					<div class="dgn-groups-info"><strong>Πώς λειτουργούν οι ομάδες.</strong> Κάθε γενικό τμήμα έχει κοινούς μαθητές με όλες τις ομάδες της τάξης του. Γι' αυτό, σε κάθε τάξη, μια ημέρα είναι ή ημέρα διαγωνισμάτων των τμημάτων ή ημέρα διαγωνισμάτων των ομάδων, όχι και τα δύο. Το όριο των διαγωνισμάτων της εβδομάδας μετρά μαζί τα διαγωνίσματα του τμήματος και της ομάδας.</div>
+					<div id="dgn-groups" class="dgn-groups"><p class="description">Οι ομάδες εμφανίζονται όταν φορτώσει η σελίδα (χρειάζεται JavaScript).</p></div>
+					<p style="margin:10px 0 0"><button type="button" class="button" id="dgn-add-group">+ Προσθήκη ομάδας</button></p>
+					<?php dgn_admin_group_warnings( $s, $form_groups ); ?>
+					<p class="description">Στον πίνακα κάθε ομάδα εμφανίζεται ως στήλη με την τάξη και το σύντομο όνομά της, π.χ. <code>Β·ΘΕΤ</code>, μετά τα τμήματα της τάξης. Τα ίδια μαθήματα (π.χ. «Φυσική», «Ιστορία») μπορούν να υπάρχουν και στα γενικά μαθήματα και σε μια ομάδα: το τμήμα ή η ομάδα της δήλωσης δείχνει ποιο εννοείται. Αν αλλάξετε την τάξη ή το σύντομο όνομα μιας ομάδας, οι δηλώσεις της μένουν με το παλιό όνομα.</p>
+				</td>
 			</tr>
 			</table>
 		</div>
@@ -441,7 +525,7 @@ function dgn_admin_tab_settings() {
 			<table class="form-table" role="presentation">
 			<tr>
 				<th scope="row"><label for="dgn-max">Διαγωνίσματα ανά εβδομάδα</label></th>
-				<td><input id="dgn-max" name="weekly_max" type="number" min="1" max="5" value="<?php echo (int) $s['weekly_max']; ?>" class="small-text"> ανά τμήμα. Σύμφωνα με το ισχύον πλαίσιο αξιολόγησης των μαθητών, έως 1 την ημέρα και έως 3 την εβδομάδα.</td>
+				<td><input id="dgn-max" name="weekly_max" type="number" min="1" max="5" value="<?php echo (int) $s['weekly_max']; ?>" class="small-text"> ανά τμήμα<span class="dgn-only-lyk">· σε τάξη με ομάδες προσανατολισμού, ανά μαθητή (τα διαγωνίσματα του τμήματος και της ομάδας μετρούν μαζί)</span>. Σύμφωνα με το ισχύον πλαίσιο αξιολόγησης των μαθητών, έως 1 την ημέρα και έως 3 την εβδομάδα.</td>
 			</tr>
 			<tr>
 				<th scope="row">Προθεσμίες δήλωσης</th>
@@ -549,7 +633,209 @@ function dgn_admin_tab_settings() {
 		if ( codeIn ) { codeIn.addEventListener( 'input', strength ); strength(); }
 	} )();
 	</script>
+	<script>
+	/* Τύπος σχολείου και ομάδες προσανατολισμού (1.11.0). */
+	( function () {
+		var form = document.querySelector( 'form.dgn-settings' );
+		if ( ! form ) return;
+		var D = <?php echo wp_json_encode( array( 'rec' => dgn_recommended_lists(), 'groups' => $form_groups, 'locked' => $locked, 'type' => $etype ) ); ?>;
+		var box = form.querySelector( '#dgn-groups' ), addBtn = form.querySelector( '#dgn-add-group' );
+		var classesEl = form.querySelector( '#dgn-classes' ), subjectsEl = form.querySelector( '#dgn-subjects' );
+		if ( ! box || ! classesEl || ! subjectsEl ) return;
+		// Μόνο αν φτάσει εδώ το JS στέλνονται οι ομάδες· αλλιώς ο server κρατά τις αποθηκευμένες.
+		var gp = document.createElement( 'input' );
+		gp.type = 'hidden'; gp.name = 'groups_present'; gp.value = '1';
+		form.appendChild( gp );
+		var GRADES = [ 'Α', 'Β', 'Γ', 'Δ' ];
+		function mk( tag, attrs ) {
+			var n = document.createElement( tag );
+			Object.keys( attrs || {} ).forEach( function ( k ) { if ( k === 'text' ) n.textContent = attrs[ k ]; else n.setAttribute( k, attrs[ k ] ); } );
+			return n;
+		}
+		var uid = 0;
+		function card( g ) {
+			var id = 'dgn-g' + ( ++uid );
+			var c = mk( 'div', { 'class': 'dgn-group-card' } );
+			var topRow = mk( 'div', { 'class': 'dgn-group-top' } );
+			var fName = mk( 'div', { style: 'flex:1 1 200px' } ), fGrade = mk( 'div', { style: 'flex:0 0 64px' } ), fShort = mk( 'div', { style: 'flex:0 0 110px' } );
+			var name = mk( 'input', { type: 'text', id: id + 'n', maxlength: '40', 'data-f': 'name' } ); name.value = g.name || '';
+			var grade = mk( 'select', { id: id + 't', 'data-f': 'grade' } );
+			var grades = GRADES.slice(); if ( g.grade && grades.indexOf( g.grade ) === -1 ) grades.push( g.grade );
+			grades.forEach( function ( x ) { grade.appendChild( mk( 'option', { value: x, text: x } ) ); } );
+			grade.value = g.grade || 'Β';
+			var short = mk( 'input', { type: 'text', id: id + 's', maxlength: '5', 'data-f': 'short' } ); short.value = g.short || '';
+			fName.appendChild( mk( 'label', { 'for': id + 'n', text: 'Όνομα ομάδας' } ) ); fName.appendChild( name );
+			fGrade.appendChild( mk( 'label', { 'for': id + 't', text: 'Τάξη' } ) ); fGrade.appendChild( grade );
+			fShort.appendChild( mk( 'label', { 'for': id + 's', text: 'Σύντομο όνομα' } ) ); fShort.appendChild( short );
+			topRow.appendChild( fName ); topRow.appendChild( fGrade ); topRow.appendChild( fShort );
+			var preview = mk( 'p', { 'class': 'dgn-group-label', style: 'margin:6px 0 0' } );
+			function upd() { preview.textContent = 'Στον πίνακα: ' + grade.value + '·' + ( short.value.trim().toUpperCase() || '…' ); }
+			name.addEventListener( 'input', upd ); grade.addEventListener( 'change', upd ); short.addEventListener( 'input', upd ); upd();
+			var subj = mk( 'textarea', { id: id + 'm', rows: '4', 'data-f': 'subjects', placeholder: 'Ένα ανά γραμμή, με τη συντομογραφία:\nΦυσική | ΦΥΣ' } ); subj.value = g.subjects || '';
+			var del = mk( 'button', { type: 'button', 'class': 'dgn-group-del', text: 'Αφαίρεση ομάδας' } );
+			del.addEventListener( 'click', function () { c.parentNode.removeChild( c ); renumber(); } );
+			c.appendChild( topRow ); c.appendChild( preview );
+			c.appendChild( mk( 'label', { 'for': id + 'm', style: 'margin-top:10px', text: 'Μαθήματα της ομάδας' } ) );
+			c.appendChild( subj );
+			var p = mk( 'p', { style: 'margin:8px 0 0' } ); p.appendChild( del ); c.appendChild( p );
+			return c;
+		}
+		function cards() { return Array.prototype.slice.call( box.querySelectorAll( '.dgn-group-card' ) ); }
+		function renumber() {
+			cards().forEach( function ( c, i ) {
+				c.querySelectorAll( '[data-f]' ).forEach( function ( el ) { el.name = 'groups[' + i + '][' + el.getAttribute( 'data-f' ) + ']'; } );
+			} );
+		}
+		function readGroups() {
+			return cards().map( function ( c ) {
+				var o = {};
+				c.querySelectorAll( '[data-f]' ).forEach( function ( el ) { o[ el.getAttribute( 'data-f' ) ] = el.value; } );
+				return o;
+			} );
+		}
+		function renderGroups( list ) {
+			box.textContent = '';
+			( list || [] ).forEach( function ( g ) { box.appendChild( card( g ) ); } );
+			renumber();
+		}
+		renderGroups( D.groups );
+		if ( addBtn ) addBtn.addEventListener( 'click', function () {
+			var c = card( { name: '', grade: 'Β', short: '', subjects: '' } );
+			box.appendChild( c ); renumber();
+			c.querySelector( 'input' ).focus();
+		} );
+		if ( D.locked ) return;
+
+		// Αλλαγή τύπου πριν την επιβεβαίωση: οι λίστες γεμίζουν με τις προτεινόμενες του τύπου.
+		// Όσο η σελίδα μένει ανοιχτή, η φόρμα θυμάται τι είχε κάθε τύπος, ώστε να γυρίσει κανείς στις δικές του λίστες.
+		var cur = D.type, memory = {}, base = {};
+		function snap() { return { classes: classesEl.value, subjects: subjectsEl.value, groups: readGroups() }; }
+		function same( a, b ) { return JSON.stringify( a ) === JSON.stringify( b ); }
+		base[ cur ] = snap();
+		form.querySelectorAll( 'input[name=school_type]' ).forEach( function ( r ) {
+			r.addEventListener( 'change', function () {
+				if ( ! r.checked || r.value === cur ) return;
+				var now = snap();
+				if ( ! same( now, base[ cur ] ) && ! window.confirm( 'Οι αλλαγές σας στις λίστες θα αντικατασταθούν από τις προτεινόμενες. Συνέχεια;' ) ) {
+					form.querySelector( 'input[name=school_type][value=' + cur + ']' ).checked = true;
+					return;
+				}
+				memory[ cur ] = now;
+				var v = JSON.parse( JSON.stringify( memory[ r.value ] || D.rec[ r.value ] ) );
+				classesEl.value = v.classes; subjectsEl.value = v.subjects; renderGroups( v.groups );
+				cur = r.value;
+				base[ cur ] = snap();
+				form.setAttribute( 'data-type', cur );
+			} );
+		} );
+		var btn = form.querySelector( '#dgn-confirm-type' );
+		if ( btn ) btn.addEventListener( 'click', function () {
+			var lyk = cur === 'lyk';
+			if ( ! window.confirm( 'Ορισμός τύπου σχολείου: ' + ( lyk ? 'Λύκειο' : 'Γυμνάσιο' ) + '\n\nΟ τύπος σχολείου δεν μπορεί να αλλάξει αργότερα. Θα αποθηκευτούν και τα τμήματα, τα μαθήματα' + ( lyk ? ' και οι ομάδες' : '' ) + ' που βλέπετε στη φόρμα, μαζί με τις υπόλοιπες ρυθμίσεις.\n\nΣυνέχεια;' ) ) return;
+			var h = document.createElement( 'input' );
+			h.type = 'hidden'; h.name = 'confirm_type'; h.value = '1';
+			form.appendChild( h );
+			var sub = form.querySelector( '#submit' );
+			if ( sub ) sub.click(); else form.submit();
+			// Τα δεδομένα της φόρμας έχουν ήδη συλλεχθεί· αν η αποστολή δεν έγινε (π.χ. μη έγκυρο πεδίο), το επόμενο
+			// απλό «Αποθήκευση» δεν πρέπει να ορίσει τύπο.
+			window.setTimeout( function () { if ( h.parentNode ) h.parentNode.removeChild( h ); }, 0 );
+		} );
+	} )();
+	</script>
 	<?php
+}
+
+/**
+ * Προειδοποιήσεις κάτω από τις «Ομάδες προσανατολισμού». Δεν εμποδίζουν την αποθήκευση.
+ *
+ * @param array $form_groups Οι ομάδες όπως είναι αποθηκευμένες (καθαρισμένες), και όσες αγνοούνται.
+ */
+function dgn_admin_group_warnings( $s, $form_groups ) {
+	global $wpdb;
+	if ( ! $form_groups ) {
+		return;
+	}
+	$school  = dgn_school_grades( $s['classes'] );
+	$classes = dgn_classes( $s );
+	$warn    = array();
+	$nograde = array();
+	$nosubj  = array();
+	$dup     = array();
+	$seen    = array();
+	foreach ( $form_groups as $g ) {
+		$label = dgn_group_label( $g );
+		if ( ! in_array( $g['grade'], $school, true ) ) {
+			$nograde[] = 'η «' . $g['name'] . '» ανήκει στη ' . $g['grade'] . ' τάξη, που δεν έχει τμήματα';
+		}
+		$has = false;
+		foreach ( preg_split( '/\R/u', (string) $g['subjects'] ) as $line ) {
+			if ( '' !== dgn_subject_line( $line )[0] ) {
+				$has = true;
+				break;
+			}
+		}
+		if ( ! $has ) {
+			$nosubj[] = $g['name'];
+		}
+		if ( in_array( $label, $classes, true ) ) {
+			$dup[] = 'το «' . $label . '» υπάρχει και ως τμήμα';
+		} elseif ( isset( $seen[ $label ] ) ) {
+			$dup[] = 'το «' . $label . '» το έχουν δύο ομάδες';
+		}
+		$seen[ $label ] = true;
+	}
+	if ( $nograde ) {
+		$warn[] = '<strong>Ελέγξτε τις ομάδες:</strong> ' . esc_html( implode( ' · ', $nograde ) ) . '.';
+	}
+	if ( $nosubj ) {
+		$warn[] = '<strong>Ομάδες χωρίς κανένα μάθημα:</strong> ' . esc_html( implode( ', ', $nosubj ) ) . '.';
+	}
+	if ( $dup ) {
+		$warn[] = '<strong>Η ετικέτα στον πίνακα πρέπει να είναι μοναδική:</strong> ' . esc_html( implode( ' · ', $dup ) ) . '. Η ομάδα δεν εμφανίζεται και δεν δέχεται δηλώσεις μέχρι να αλλάξετε το σύντομο όνομά της.';
+	}
+	$groups = dgn_groups( $s );
+	if ( $groups ) {
+		$t    = dgn_table( 'exams' );
+		$in   = implode( ',', array_fill( 0, count( $groups ), '%s' ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT cls, exam_date, subject FROM $t WHERE exam_date >= %s AND cls IN ($in) ORDER BY exam_date, cls", array_merge( array( dgn_school_year()[0] ), array_keys( $groups ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+		$mis  = array();
+		foreach ( (array) $rows as $r ) {
+			if ( ! isset( $groups[ $r->cls ]['subjects'][ $r->subject ] ) ) {
+				$mis[] = date_i18n( 'j/n', strtotime( $r->exam_date ) ) . ' ' . $r->cls . ' ' . $r->subject;
+			}
+		}
+		if ( $mis ) {
+			$more   = count( $mis ) > 15 ? ' κ.ά. (' . count( $mis ) . ' συνολικά)' : '';
+			$warn[] = '<strong>Δηλώσεις σε μάθημα που δεν ανήκει στην ομάδα:</strong> ' . esc_html( implode( ' · ', array_slice( $mis, 0, 15 ) ) . $more ) . '. Διορθώστε τις από τις <a href="' . esc_url( dgn_admin_url( 'exams' ) ) . '">Δηλώσεις</a>.';
+		}
+	}
+	foreach ( $warn as $w ) {
+		echo '<p style="color:#996800;margin:8px 0 0">' . $w . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above
+	}
+}
+
+/**
+ * Προειδοποίηση κάτω από τα «Τμήματα»: δηλώσεις της φετινής χρονιάς σε τμήμα ή ομάδα που δεν υπάρχει πια
+ * στις ρυθμίσεις (π.χ. μετά από μετονομασία). Δεν φαίνονται στον πίνακα, αλλά μένουν στη βάση και στο Excel.
+ */
+function dgn_admin_orphan_warnings( $s ) {
+	global $wpdb;
+	$units = dgn_units( $s );
+	if ( ! $units ) {
+		return;
+	}
+	$t    = dgn_table( 'exams' );
+	$in   = implode( ',', array_fill( 0, count( $units ), '%s' ) );
+	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT cls, COUNT(*) AS n FROM $t WHERE exam_date >= %s AND cls NOT IN ($in) GROUP BY cls ORDER BY cls", array_merge( array( dgn_school_year()[0] ), $units ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+	if ( ! $rows ) {
+		return;
+	}
+	$list = array();
+	foreach ( $rows as $r ) {
+		$list[] = $r->cls . ' (' . (int) $r->n . ')';
+	}
+	echo '<p style="color:#996800;margin:6px 0 0"><strong>Δηλώσεις σε τμήμα ή ομάδα που δεν υπάρχει πια στις ρυθμίσεις:</strong> ' . esc_html( implode( ', ', $list ) ) . '. Δεν εμφανίζονται στον πίνακα. Αν μετονομάσατε κάτι, επαναφέρετε το παλιό όνομα ή διορθώστε τις δηλώσεις από τις <a href="' . esc_url( dgn_admin_url( 'exams' ) ) . '">Δηλώσεις</a>.</p>';
 }
 
 function dgn_admin_tab_exams() {
@@ -575,6 +861,7 @@ function dgn_admin_tab_exams() {
 			<?php submit_button( 'Λήψη αρχείου Excel', 'primary', 'submit', false ); ?>
 			<span class="description">Όλα τα διαγωνίσματα της χρονιάς (1/9 – 30/6), ένα ανά γραμμή.</span>
 		</form>
+		<p class="description" style="margin:8px 0 0">Συμβουλή: κατεβάζετε κατά διαστήματα το αρχείο Excel και το κρατάτε ως αντίγραφο των δηλώσεων. Αν χρειαστεί ποτέ, οι δηλώσεις ξαναπερνιούνται από αυτό σε λίγα λεπτά.</p>
 	</div>
 	<?php
 	echo '<h2>Επόμενα διαγωνίσματα</h2>';
@@ -705,7 +992,11 @@ function dgn_admin_subject_warnings( $s ) {
 		$t    = dgn_table( 'exams' );
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT cls, exam_date, subject FROM $t WHERE exam_date >= %s ORDER BY exam_date, cls", dgn_school_year()[0] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$mis  = array();
+		$grp  = dgn_groups( $s );
 		foreach ( (array) $rows as $r ) {
+			if ( isset( $grp[ $r->cls ] ) ) {
+				continue; // δήλωση ομάδας: ελέγχεται κάτω από τις ομάδες, με τα μαθήματα της ομάδας
+			}
 			if ( isset( dgn_subjects( $s )[ $r->subject ] ) && ! dgn_subject_allowed( $r->subject, $r->cls, $s ) ) {
 				$mis[] = date_i18n( 'j/n', strtotime( $r->exam_date ) ) . ' ' . $r->cls . ' ' . $r->subject;
 			}
