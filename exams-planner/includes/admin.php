@@ -415,7 +415,7 @@ function dgn_admin_tab_settings() {
 		<?php if ( $locked ) : ?>
 			<div class="dgn-typebox dgn-typebox-done">
 				<p style="margin:0"><strong>Τύπος σχολείου: <?php echo esc_html( $type_names[ $s['school_type'] ] ); ?></strong> (οριστικό)</p>
-				<p class="description" style="margin:4px 0 0">Ο τύπος δεν αλλάζει από εδώ. Αν ορίστηκε κατά λάθος, η αλλαγή γίνεται μόνο με διαγραφή του πρόσθετου με το τικ «Να σβήνονται όλα τα δεδομένα» (ενότητα 5) και νέα εγκατάσταση.</p>
+				<p class="description" style="margin:4px 0 0">Προσοχή: αν ο τύπος του σχολείου ορίστηκε κατά λάθος και θέλετε να τον αλλάξετε, θα πρέπει να διαγράψετε το πρόσθετο και να το εγκαταστήσετε ξανά. Πριν από τη διαγραφή, επιλέξτε «Να σβήνονται όλα τα δεδομένα» (ενότητα 5). Έτσι θα σβηστούν οι δηλώσεις, το ιστορικό και οι ρυθμίσεις, και το πρόσθετο θα ξεκινήσει από την αρχή.</p>
 			</div>
 		<?php else : ?>
 			<div class="dgn-typebox">
@@ -577,8 +577,8 @@ function dgn_admin_tab_settings() {
 				<td>
 					<div class="dgn-danger">
 						<label><input type="checkbox" name="uninstall_wipe" value="1" <?php checked( ! empty( $s['uninstall_wipe'] ) ); ?>> Να σβήνονται όλα τα δεδομένα όταν διαγράφεται το πρόσθετο</label>
-						<p class="description">Αν μείνει χωρίς τικ (προτείνεται), τα δεδομένα του πρόσθετου (δηλώσεις, ιστορικό και ρυθμίσεις) παραμένουν στη βάση δεδομένων. Αν το πρόσθετο διαγραφεί και εγκατασταθεί ξανά, όλα τα δεδομένα θα είναι διαθέσιμα όπως πριν.</p>
-						<p class="description">Βάλτε τικ μόνο αν θέλετε, κατά τη διαγραφή του πρόσθετου, να διαγραφούν οριστικά όλα τα δεδομένα του.</p>
+						<p class="description">Αν το checkbox παραμείνει χωρίς τικ (προτείνεται), τα δεδομένα του πρόσθετου, όπως οι δηλώσεις, το ιστορικό και οι ρυθμίσεις, παραμένουν στη βάση δεδομένων. Επομένως, αν το πρόσθετο διαγραφεί και εγκατασταθεί ξανά, όλα τα δεδομένα θα είναι διαθέσιμα όπως πριν.</p>
+						<p class="description">Επιλέξτε το checkbox μόνο αν θέλετε, κατά τη διαγραφή του πρόσθετου, να διαγραφούν οριστικά και όλα τα δεδομένα του.</p>
 					</div>
 				</td>
 			</tr>
@@ -906,7 +906,7 @@ function dgn_admin_tab_log() {
 	$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $t" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	?>
 	<div style="background:#fff;border:1px solid #c3c4c7;padding:12px 16px;margin:16px 0;max-width:1100px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between">
-		<span>Κρατούνται οι τελευταίες <?php echo esc_html( number_format_i18n( DGN_LOG_KEEP ) ); ?> ενέργειες· οι παλαιότερες διαγράφονται αυτόματα. Αυτή τη στιγμή: <strong><?php echo esc_html( number_format_i18n( $total ) ); ?></strong>.</span>
+		<span>Διατηρούνται έως <?php echo esc_html( number_format_i18n( DGN_LOG_KEEP ) ); ?> πρόσφατες ενέργειες. Οι παλαιότερες διαγράφονται αυτόματα. Αυτή τη στιγμή υπάρχουν: <strong><?php echo esc_html( number_format_i18n( $total ) ); ?></strong>.</span>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0">
 			<input type="hidden" name="action" value="dgn_export_log">
 			<?php wp_nonce_field( 'dgn_export_log' ); ?>
