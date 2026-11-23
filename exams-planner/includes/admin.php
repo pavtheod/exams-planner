@@ -366,7 +366,7 @@ function dgn_admin_tab_settings() {
 		<?php if ( $locked ) : ?>
 			<div class="dgn-typebox dgn-typebox-done">
 				<p style="margin:0"><strong>Τύπος σχολείου: <?php echo esc_html( $type_names[ $s['school_type'] ] ); ?></strong> (οριστικό)</p>
-				<p class="description" style="margin:4px 0 0">Προσοχή: αν ο τύπος του σχολείου ορίστηκε κατά λάθος και θέλετε να τον αλλάξετε, θα πρέπει να διαγράψετε το πρόσθετο και να το εγκαταστήσετε ξανά. Πριν από τη διαγραφή, επιλέξτε «Να σβήνονται όλα τα δεδομένα» (ενότητα 5). Έτσι θα σβηστούν οι δηλώσεις, το ιστορικό και οι ρυθμίσεις, και το πρόσθετο θα ξεκινήσει από την αρχή.</p>
+				<p class="description" style="margin:4px 0 0">Προσοχή: αν ο τύπος του σχολείου ορίστηκε κατά λάθος και θέλετε να τον αλλάξετε, θα πρέπει να διαγράψετε το πρόσθετο και να το εγκαταστήσετε ξανά. Πριν από τη διαγραφή, πηγαίνετε στην ενότητα «Δεδομένα», στο τέλος αυτής της σελίδας, και επιλέξτε «Να σβήνονται όλα τα δεδομένα όταν διαγράφεται το πρόσθετο». Αποθηκεύστε τις ρυθμίσεις και μετά διαγράψτε το πρόσθετο. Έτσι θα σβηστούν οι δηλώσεις, το ιστορικό και οι ρυθμίσεις, και το πρόσθετο θα ξεκινήσει από την αρχή.</p>
 			</div>
 		<?php else : ?>
 			<div class="dgn-typebox">
@@ -387,7 +387,7 @@ function dgn_admin_tab_settings() {
 				<th scope="row"><label for="dgn-school">Όνομα σχολείου</label></th>
 				<td>
 					<input id="dgn-school" name="school_name" class="regular-text" value="<?php echo esc_attr( $s['school_name'] ); ?>">
-					<p class="description">Δεν εμφανίζεται στη σελίδα. Με αυτό το όνομα αποθηκεύει ο browser τον κωδικό των καθηγητών.</p>
+					<p class="description">Δεν εμφανίζεται στη σελίδα. Χρησιμοποιείται μόνο όταν οι καθηγητές μπαίνουν με κοινό κωδικό. Με αυτό το όνομα θα αποθηκεύεται στον browser τους ο κωδικός.</p>
 				</td>
 			</tr>
 			<?php dgn_admin_section1_rows( $s, $form_groups ); ?>
@@ -401,11 +401,11 @@ function dgn_admin_tab_settings() {
 				<td>
 					<fieldset>
 						<label><input type="radio" name="access" value="sso" <?php checked( $s['access'], 'sso' ); ?>> Με τον <strong>λογαριασμό ΠΣΔ (sch.gr)</strong>, μόνο καθηγητές της σχολικής μονάδας με εγγραφή στο ΠΣΔ</label><br>
-						<label><input type="radio" name="access" value="users" <?php checked( $s['access'], 'users' ); ?>> Μόνο όσοι έχουν <strong>λογαριασμό στην ιστοσελίδα</strong> και έχουν συνδεθεί</label><br>
+						<label><input type="radio" name="access" value="users" <?php checked( $s['access'], 'users' ); ?>> Με <strong>λογαριασμό στην ιστοσελίδα</strong> (Χρήστες του WordPress), αφού συνδεθούν σε αυτόν</label><br>
 						<?php if ( dgn_open_registration() ) : ?>
 							<div class="dgn-danger" style="margin:4px 0 8px 24px"><strong>Προσοχή:</strong> η ιστοσελίδα επιτρέπει σε οποιονδήποτε να φτιάξει λογαριασμό (Ρυθμίσεις → Γενικά → «Οποιοσδήποτε μπορεί να εγγραφεί»). Για ασφάλεια, με αυτόν τον τρόπο εισόδου δεν γίνονται δεκτοί ως καθηγητές οι λογαριασμοί με τον ρόλο των νέων εγγραφών (Συνδρομητής). Δώστε στους καθηγητές ρόλο Συνεργάτη ή ανώτερο, ή κλείστε την ελεύθερη εγγραφή.</div>
 						<?php endif; ?>
-						<label><input type="radio" name="access" value="code" <?php checked( $s['access'], 'code' ); ?>> Όποιος ξέρει τον <strong>κοινό κωδικό καθηγητών</strong></label>
+						<label><input type="radio" name="access" value="code" <?php checked( $s['access'], 'code' ); ?>> Με <strong>κοινό κωδικό καθηγητών</strong>, που τον ορίζετε εσείς παρακάτω</label>
 					</fieldset>
 				</td>
 			</tr>
@@ -967,7 +967,7 @@ function dgn_admin_tab_exams() {
 			<?php submit_button( 'Λήψη αρχείου Excel', 'primary', 'submit', false ); ?>
 			<span class="description">Όλα τα διαγωνίσματα της χρονιάς (1/9 – 30/6), ένα ανά γραμμή.</span>
 		</form>
-		<p class="description" style="margin:8px 0 0">Συμβουλή: κατεβάζετε κατά διαστήματα το αρχείο Excel και το κρατάτε ως αντίγραφο των δηλώσεων. Αν χρειαστεί ποτέ, οι δηλώσεις ξαναπερνιούνται από αυτό σε λίγα λεπτά.</p>
+		<p class="description" style="margin:8px 0 0"><strong>Συμβουλή:</strong> κατεβάζετε κατά διαστήματα το αρχείο Excel και το κρατάτε ως αντίγραφο των δηλώσεων. Αν χρειαστεί ποτέ, οι δηλώσεις ξαναπερνιούνται από αυτό σε λίγα λεπτά.</p>
 	</div>
 	<?php
 	echo '<h2>Επόμενα διαγωνίσματα</h2>';
@@ -994,7 +994,7 @@ function dgn_admin_tab_exams() {
 	}
 	?>
 	<h2 style="margin-top:32px">Νέα σχολική χρονιά</h2>
-	<p>Διαγράφει όλες τις δηλώσεις πριν από την ημερομηνία που θα επιλέξετε. Το ιστορικό μένει.</p>
+	<p>Στην αρχή της νέας σχολικής χρονιάς, διαγράψτε τις δηλώσεις της προηγούμενης. Διαγράφονται όλες οι δηλώσεις με ημερομηνία πριν από αυτήν που θα επιλέξετε, και η διαγραφή δεν αναιρείται. Αν θέλετε να τις κρατήσετε, κατεβάστε πρώτα το αρχείο Excel. Το ιστορικό δεν επηρεάζεται.</p>
 	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 		<input type="hidden" name="action" value="dgn_purge">
 		<?php wp_nonce_field( 'dgn_purge' ); ?>
