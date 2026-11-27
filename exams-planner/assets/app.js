@@ -323,7 +323,7 @@
   ];
   if (HAS_GROUPS) {
     ruleRows.push(el('span'));
-    ruleRows.push(el('span', null, ['Σε κάθε τάξη, μια ημέρα είναι ', el('strong', { text: 'ή των τμημάτων ή των ομάδων' }), '.']));
+    ruleRows.push(el('span', null, ['Τμήμα και ομάδα με κοινούς μαθητές ', el('strong', { text: 'δεν έχουν διαγώνισμα την ίδια ημέρα' }), '.']));
   }
   if (notice > 0) {
     ruleRows.push(el('span'));
@@ -347,7 +347,7 @@
     el('span', null, [el('i', { class: 'dgn-sw dgn-sw-full' }), 'Εβδομάδα πλήρης']),
     // Με ομάδες προσανατολισμού: διαγωνίσματα ομάδων και ημέρες κλειστές για την άλλη κατηγορία.
     HAS_GROUPS ? el('span', null, [el('i', { class: 'dgn-sw dgn-sw-grp' }), 'Διαγώνισμα ομάδας']) : null,
-    HAS_GROUPS ? el('span', null, [el('i', { class: 'dgn-sw dgn-sw-block' }), 'Κλειστό: η τάξη έχει διαγώνισμα της άλλης κατηγορίας']) : null,
+    HAS_GROUPS ? el('span', null, [el('i', { class: 'dgn-sw dgn-sw-block' }), 'Κοινοί μαθητές έχουν διαγώνισμα']) : null,
     // Γκρι διαγράμμιση: μέρες που δεν δηλώνονται ακόμα λόγω προθεσμίας (μόνο αν υπάρχει προθεσμία, όχι για τη Διεύθυνση).
     el('span', { class: 'dgn-lg-soon', hidden: true }, [el('i', { class: 'dgn-sw dgn-sw-soon' }), 'Εκτός προθεσμίας'])
   ]);
@@ -629,7 +629,7 @@
     overlaps(cls).forEach(function (o) { top = Math.max(top, weekCount(o, wkStart)); });
     return n >= cfg.weeklyMax || n + top >= cfg.weeklyMax;
   }
-  // Κλειστή ημέρα: η τάξη έχει ήδη διαγώνισμα της άλλης κατηγορίας (τμήματος ↔ ομάδας). Επιστρέφει τη μονάδα ή ''.
+  // Κλειστή ημέρα: μονάδα με κοινούς μαθητές (τμήμα ↔ ομάδα) έχει ήδη διαγώνισμα. Επιστρέφει τη μονάδα ή ''.
   function dayClash(cls, ds) {
     var o = overlaps(cls);
     for (var i = 0; i < o.length; i++) if (state.exams[o[i] + '|' + ds]) return o[i];
@@ -836,8 +836,8 @@
               td.appendChild(el('button', { type: 'button', class: 'dgn-ro', tabindex: '-1', title: e.subject, 'aria-label': label, text: abbr }));
             }
           } else if (clash) {
-            var why = isGroup(cls) ? 'Ημέρα διαγωνισμάτων γενικών τμημάτων της ' + gradeOf(cls) + '΄ τάξης (' + clash + ')'
-              : 'Ημέρα διαγωνισμάτων ομάδων προσανατολισμού της ' + gradeOf(cls) + '΄ τάξης (' + clash + ')';
+            var why = isGroup(cls) ? 'Την ίδια ημέρα έχει διαγώνισμα το τμήμα ' + clash + ', που έχει μαθητές σε αυτή την ομάδα.'
+              : 'Την ίδια ημέρα έχει διαγώνισμα η ομάδα ' + clash + ', που έχει μαθητές από αυτό το τμήμα.';
             td.className += ' dgn-block';
             td.appendChild(el('span', { title: why, 'aria-label': label + why }));
           } else if (full) {

@@ -110,12 +110,11 @@ function dgn_exam_rules_error( $cls, $day, $week, $before_id = 0 ) {
 		$in    = implode( ',', array_fill( 0, count( $other ), '%s' ) );
 		$clash = $wpdb->get_row( $wpdb->prepare( "SELECT cls, subject FROM $t WHERE exam_date = %s AND cls IN ($in)", array_merge( array( $day ), $other ) ) . $idq . ' ORDER BY id LIMIT 1', ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 		if ( $clash ) {
-			$grade = $is_group ? dgn_groups( $s )[ $cls ]['grade'] : dgn_class_grade( $cls );
 			return new WP_Error(
 				'dgn_day_kind',
 				$is_group
-					? sprintf( 'Την ημέρα αυτή η %s΄ τάξη έχει διαγώνισμα γενικού τμήματος (%s: %s). Σε κάθε τάξη μια ημέρα είναι ή των τμημάτων ή των ομάδων προσανατολισμού. Διαλέξτε άλλη ημέρα.', $grade, $clash['cls'], $clash['subject'] )
-					: sprintf( 'Την ημέρα αυτή η %s΄ τάξη έχει διαγώνισμα ομάδας προσανατολισμού (%s: %s), με μαθητές και του %s. Σε κάθε τάξη μια ημέρα είναι ή των τμημάτων ή των ομάδων. Διαλέξτε άλλη ημέρα.', $grade, $clash['cls'], $clash['subject'], $cls ),
+					? sprintf( 'Την ίδια ημέρα έχει διαγώνισμα το τμήμα %s (%s), που έχει μαθητές σε αυτή την ομάδα. Διαλέξτε άλλη ημέρα.', $clash['cls'], $clash['subject'] )
+					: sprintf( 'Την ίδια ημέρα έχει διαγώνισμα η ομάδα %s (%s), που έχει μαθητές από το %s. Διαλέξτε άλλη ημέρα.', $clash['cls'], $clash['subject'], $cls ),
 				array( 'status' => 409 )
 			);
 		}
