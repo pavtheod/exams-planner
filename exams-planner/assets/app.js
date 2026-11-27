@@ -71,12 +71,19 @@
   var HAS_GROUPS = Object.keys(cfg.groups).length > 0;
   function isGroup(u) { return Object.prototype.hasOwnProperty.call(cfg.groups, u); }
   function gradeOf(u) { return isGroup(u) ? cfg.groups[u].grade : ((cfg.clsGrades || {})[u] || ''); }
-  // Οι «αντίθετες» μονάδες: για τμήμα οι ομάδες της τάξης του, για ομάδα τα τμήματα της τάξης της.
+  // Οι «αντίθετες» μονάδες (1.13.0: με βάση τα τμήματα που έχει επιλέξει κάθε ομάδα· χωρίς επιλογή = όλη η τάξη):
+  // για τμήμα οι ομάδες της τάξης του που το περιλαμβάνουν, για ομάδα τα τμήματά της (ή όλης της τάξης της).
   function overlaps(u) {
     var g = gradeOf(u);
     if (!g) return [];
-    if (isGroup(u)) return cfg.classes.filter(function (c) { return gradeOf(c) === g; });
-    return Object.keys(cfg.groups).filter(function (x) { return cfg.groups[x].grade === g; });
+    if (isGroup(u)) {
+      var only = cfg.groups[u].classes || [];
+      return cfg.classes.filter(function (c) { return gradeOf(c) === g && (!only.length || only.indexOf(c) !== -1); });
+    }
+    return Object.keys(cfg.groups).filter(function (x) {
+      var gr = cfg.groups[x], only = gr.classes || [];
+      return gr.grade === g && (!only.length || only.indexOf(u) !== -1);
+    });
   }
   function unitName(u) { return isGroup(u) ? u + ' (' + cfg.groups[u].name + ')' : u; }
   function abbrOf(e) {

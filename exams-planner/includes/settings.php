@@ -131,8 +131,48 @@ function dgn_type_locked( $s = null ) {
 	return in_array( $s['school_type'], array( 'gym', 'lyk' ), true );
 }
 
-/** Καθαρισμός μίας ομάδας (από τη φόρμα ή από τη βάση). null = κενή (αγνοείται). */
-function dgn_clean_group( $g ) {
+/**
+ * Τμήματα μιας ομάδας (1.13.0): μόνο όσα υπάρχουν στη λίστα και ανήκουν στην τάξη της ομάδας, με τη σειρά της λίστας.
+ * Κενό αποτέλεσμα = η ομάδα αφορά όλη την τάξη. Αν επιλέχθηκαν όλα τα τμήματα της τάξης, το αποτέλεσμα είναι κι αυτό κενό.
+ * Αν δεν έμεινε κανένα έγκυρο, επίσης κενό (όλη η τάξη): είναι η αυστηρότερη επιλογή, δεν χάνεται ποτέ έλεγχος.
+ *
+ * @param mixed    $list    Τα επιλεγμένα τμήματα.
+ * @param string   $grade   Η τάξη της ομάδας.
+ * @param string[] $classes Η τρέχουσα λίστα τμημάτων.
+ * @return string[]
+ */
+function dgn_group_classes_clean( $list, $grade, $classes ) {
+	if ( ! is_array( $list ) || '' === (string) $grade ) {
+		return array();
+	}
+	$want = array();
+	foreach ( $list as $c ) {
+		if ( is_string( $c ) ) {
+			$want[ trim( $c ) ] = true;
+		}
+	}
+	$of_grade = array();
+	$picked   = array();
+	foreach ( $classes as $c ) {
+		if ( dgn_class_grade( $c ) !== $grade ) {
+			continue;
+		}
+		$of_grade[] = $c;
+		if ( isset( $want[ $c ] ) ) {
+			$picked[] = $c;
+		}
+	}
+	return count( $picked ) === count( $of_grade ) ? array() : $picked;
+}
+
+/**
+ * Καθαρισμός μίας ομάδας (από τη φόρμα ή από τη βάση). null = κενή (αγνοείται).
+ *
+ * @param array         $g       Η ομάδα.
+ * @param string[]|null $classes Η ΤΡΕΧΟΥΣΑ λίστα τμημάτων: τότε τα τμήματα της ομάδας ελέγχονται απέναντί της (αποθήκευση φόρμας).
+ *                               null: τα τμήματα της ομάδας μένουν όπως είναι αποθηκευμένα (τα ελέγχει το dgn_groups).
+ */
+function dgn_clean_group( $g, $classes = null ) {
 	if ( ! is_array( $g ) ) {
 		return null;
 	}
@@ -160,11 +200,25 @@ function dgn_clean_group( $g ) {
 	if ( '' === $name ) {
 		$name = $grade . ' ' . $short;
 	}
+	$gc = isset( $g['classes'] ) ? $g['classes'] : array();
+	if ( is_array( $classes ) ) {
+		$gc = dgn_group_classes_clean( $gc, $grade, $classes );
+	} else {
+		$keep = array();
+		foreach ( is_array( $gc ) ? $gc : array() as $c ) {
+			$c = is_string( $c ) ? trim( sanitize_text_field( $c ) ) : '';
+			if ( '' !== $c && mb_strlen( $c ) <= 20 && ! in_array( $c, $keep, true ) ) {
+				$keep[] = $c;
+			}
+		}
+		$gc = $keep;
+	}
 	return array(
 		'name'     => $name,
 		'grade'    => $grade,
 		'short'    => $short,
 		'subjects' => $subjects,
+		'classes'  => $gc,
 	);
 }
 
@@ -178,7 +232,9 @@ function dgn_group_label( $g ) {
  * Μια ομάδα αγνοείται (με προειδοποίηση στις Ρυθμίσεις) αν η ετικέτα της συμπίπτει με τμήμα
  * ή με προηγούμενη ομάδα: έτσι μια δήλωση δεν είναι ποτέ διφορούμενη.
  *
- * @return array<string, array{label:string,name:string,grade:string,short:string,subjects:array<string,string>}>
+ * Το «classes» κάθε ομάδας (1.13.0): τα τμήματα με κοινούς μαθητές· κενό = όλα τα τμήματα της τάξης.
+ *
+ * @return array<string, array{label:string,name:string,grade:string,short:string,subjects:array<string,string>,classes:string[]}>
  */
 function dgn_groups( $s = null ) {
 	$s = $s ? $s : dgn_settings();
@@ -209,6 +265,7 @@ function dgn_groups( $s = null ) {
 			'grade'    => $g['grade'],
 			'short'    => $g['short'],
 			'subjects' => $subj,
+			'classes'  => dgn_group_classes_clean( $g['classes'], $g['grade'], $classes ),
 		);
 	}
 	return $out;

@@ -30,6 +30,7 @@ add_action( 'admin_post_dgn_purge', 'dgn_admin_purge' );
 add_action( 'admin_post_dgn_clear_log', 'dgn_admin_clear_log' );
 add_action( 'admin_post_dgn_create_page', 'dgn_admin_create_page' );
 add_action( 'admin_post_dgn_fill_holidays', 'dgn_admin_fill_holidays' );
+add_action( 'admin_post_dgn_draseis', 'dgn_admin_draseis_action' );
 
 /** «Επαναφορά πανελλαδικών αργιών»: ξαναγράφει το πεδίο με τις αργίες της τρέχουσας σχολικής χρονιάς. */
 function dgn_admin_fill_holidays() {
@@ -74,6 +75,154 @@ function dgn_admin_create_page() {
 		}
 	}
 	wp_safe_redirect( admin_url( 'post.php?post=' . (int) $id . '&action=edit' ) );
+	exit;
+}
+
+/**
+ * Σύνδεση με το Draseis Planner (1.13.0).
+ * Το Draseis προσφέρει τη σταθερή δημόσια συνάρτηση draseis_planner_classes() (από την έκδοση 1.4.73). Η κοινή ρύθμιση
+ * WordPress «draseis_exams_link» είναι 'yes' (συνδεδεμένα), 'no' (ανεξάρτητα) ή κενή (δεν έχει απαντηθεί). Κάθε πρόσθετο
+ * γράφει μόνο τις δικές του ρυθμίσεις, εκτός από αυτή την κοινή τιμή.
+ */
+function dgn_draseis_present() {
+	return function_exists( 'draseis_planner_classes' );
+}
+
+/** Τα τμήματα του Draseis, περασμένα από τον καθαρισμό του Exams (γραμμές χωρίς κενά και διπλότυπα, έως 20 χαρακτήρες). */
+function dgn_draseis_classes() {
+	if ( ! dgn_draseis_present() ) {
+		return array();
+	}
+	$list = draseis_planner_classes();
+	$out  = array();
+	foreach ( is_array( $list ) ? $list : array() as $c ) {
+		$c = is_string( $c ) ? trim( sanitize_text_field( $c ) ) : '';
+		if ( '' !== $c && mb_strlen( $c ) <= 20 && ! in_array( $c, $out, true ) ) {
+			$out[] = $c;
+		}
+	}
+	return $out;
+}
+
+/** 'yes', 'no' ή '' (δεν έχει απαντηθεί). */
+function dgn_draseis_link() {
+	$v = get_option( 'draseis_exams_link', '' );
+	return in_array( $v, array( 'yes', 'no' ), true ) ? $v : '';
+}
+
+/**
+ * Σύγκριση των τμημάτων των δύο πρόσθετων.
+ *
+ * @return array{draseis:string[],same:bool,leaving:string[],declared:string[]} leaving: τμήματα του Exams που λείπουν από το Draseis·
+ *         declared: από αυτά, όσα έχουν δηλώσεις (οποιασδήποτε ημερομηνίας) στο Exams.
+ */
+function dgn_draseis_compare( $s ) {
+	global $wpdb;
+	$dr      = dgn_draseis_classes();
+	$ex      = dgn_classes( $s );
+	$leaving = array_values( array_diff( $ex, $dr ) );
+	$same    = ! $leaving && ! array_diff( $dr, $ex );
+	$declared = array();
+	if ( $leaving ) {
+		$t   = dgn_table( 'exams' );
+		$has = $wpdb->get_col( "SELECT DISTINCT cls FROM $t" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$declared = array_values( array_intersect( $leaving, $has ) );
+	}
+	return array( 'draseis' => $dr, 'same' => $same, 'leaving' => $leaving, 'declared' => $declared );
+}
+
+/** Σύνδεσμος-κουμπί προς τον χειριστή (με nonce). */
+function dgn_draseis_btn( $do, $label, $primary ) {
+	return '<a class="button' . ( $primary ? ' button-primary' : '' ) . '" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=dgn_draseis&do=' . $do ), 'dgn_draseis' ) ) . '">' . esc_html( $label ) . '</a> ';
+}
+
+/** Το μπλε μήνυμα πάνω από το «Τύπος σχολείου»: μόνο όταν υπάρχει το Draseis και δεν έχει απαντηθεί η σύνδεση. */
+function dgn_admin_draseis_box( $s ) {
+	if ( ! dgn_draseis_present() || '' !== dgn_draseis_link() ) {
+		return;
+	}
+	$c = dgn_draseis_compare( $s );
+	echo '<div class="notice notice-info inline" style="max-width:1100px;margin:18px 0"><p><strong>Βρέθηκε το Draseis Planner (πρόγραμμα δράσεων).</strong></p>';
+	if ( ! $c['draseis'] ) {
+		echo '<p>Το Draseis Planner δεν έχει ακόμη τμήματα. Αν συνδεθείτε, θα χρησιμοποιεί τα τμήματα αυτής της σελίδας και δεν θα επιτρέπεται διαγώνισμα και δράση για το ίδιο τμήμα την ίδια ημέρα.</p><p>';
+		echo dgn_draseis_btn( 'yes', 'Σύνδεση με τα τμήματα του Exams Planner', true ) . dgn_draseis_btn( 'no', 'Όχι, ανεξάρτητα', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped μέσα στη συνάρτηση
+	} elseif ( $c['same'] ) {
+		echo '<p>Τα τμήματα στα δύο πρόσθετα είναι ίδια. Να συνδεθούν; Το Draseis θα χρησιμοποιεί τα τμήματα αυτής της σελίδας και δεν θα επιτρέπεται διαγώνισμα και δράση για το ίδιο τμήμα την ίδια ημέρα.</p><p>';
+		echo dgn_draseis_btn( 'yes', 'Ναι, σύνδεση', true ) . dgn_draseis_btn( 'no', 'Όχι, ανεξάρτητα', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	} elseif ( ! $c['declared'] ) {
+		echo '<p>Το Draseis Planner έχει τα τμήματα: <code>' . implode( '</code> <code>', array_map( 'esc_html', $c['draseis'] ) ) . '</code></p>';
+		echo '<p>Μπορείτε να χρησιμοποιήσετε τα ίδια τμήματα και εδώ. Θα αντικαταστήσουν τη λίστα «Τμήματα» αυτής της σελίδας, και τα δύο πρόσθετα θα συνδεθούν: δεν θα επιτρέπεται διαγώνισμα και δράση για το ίδιο τμήμα την ίδια ημέρα.</p><p>';
+		echo dgn_draseis_btn( 'copy', 'Χρήση αυτών των τμημάτων', true ) . dgn_draseis_btn( 'no', 'Όχι, ευχαριστώ', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	} else {
+		$n = count( $c['declared'] );
+		echo '<p>Τα τμήματα των δύο πρόσθετων διαφέρουν: ' . ( 1 === $n ? 'το ' : 'τα ' ) . '<strong>' . esc_html( implode( ', ', $c['declared'] ) ) . '</strong> ' . ( 1 === $n ? 'έχει' : 'έχουν' ) . ' δηλώσεις στο Exams Planner αλλά ' . ( 1 === $n ? 'δεν υπάρχει' : 'δεν υπάρχουν' ) . ' στο Draseis.</p>';
+		echo '<p>Για να μη χαθούν δηλώσεις, τα τμήματα δεν αντιγράφονται. Αν συνδεθείτε, το Draseis θα χρησιμοποιεί τα τμήματα του Exams Planner· τίποτα δεν αλλάζει εδώ.</p><p>';
+		echo dgn_draseis_btn( 'yes', 'Σύνδεση με τα τμήματα του Exams Planner', true ) . dgn_draseis_btn( 'no', 'Όχι, ανεξάρτητα', false ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	}
+	echo '</p></div>';
+}
+
+/** Γραμμή «Σύνδεση με το Draseis Planner» στην ενότητα 1 των Ρυθμίσεων (μόνο όταν υπάρχει το Draseis). */
+function dgn_admin_draseis_row() {
+	if ( ! dgn_draseis_present() ) {
+		return;
+	}
+	$dl = dgn_draseis_link();
+	?>
+			<tr>
+				<th scope="row">Σύνδεση με το Draseis Planner</th>
+				<td>
+					<fieldset>
+						<label style="margin-right:18px"><input type="radio" name="draseis_link" value="yes" <?php checked( $dl, 'yes' ); ?>> <strong>Ναι</strong>, συνδεδεμένα</label>
+						<label><input type="radio" name="draseis_link" value="no" <?php checked( $dl, 'no' ); ?>> <strong>Όχι</strong>, ανεξάρτητα</label>
+					</fieldset>
+					<p class="description">Όταν είναι συνδεδεμένα, το Draseis Planner χρησιμοποιεί τα τμήματα αυτής της σελίδας και δεν επιτρέπει διαγώνισμα και δράση για το ίδιο τμήμα την ίδια ημέρα.</p>
+				</td>
+			</tr>
+	<?php
+}
+
+/** Κουμπιά του μηνύματος: yes / no / copy. Ελέγχεται ξανά στον server πριν από κάθε αντιγραφή. */
+function dgn_admin_draseis_action() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( 'Δεν έχετε δικαίωμα.' );
+	}
+	check_admin_referer( 'dgn_draseis' );
+	$do = isset( $_GET['do'] ) ? sanitize_key( wp_unslash( $_GET['do'] ) ) : '';
+	if ( ! dgn_draseis_present() || ! in_array( $do, array( 'yes', 'no', 'copy' ), true ) ) {
+		wp_safe_redirect( dgn_admin_url( 'settings' ) );
+		exit;
+	}
+	$s   = dgn_settings();
+	$msg = 'draseislinked';
+	$args = array();
+	if ( 'no' === $do ) {
+		update_option( 'draseis_exams_link', 'no' );
+		$msg = 'draseisunlinked';
+	} elseif ( 'yes' === $do ) {
+		update_option( 'draseis_exams_link', 'yes' );
+	} else {
+		$c = dgn_draseis_compare( $s );
+		if ( ! $c['draseis'] || $c['declared'] ) {
+			// Ο έλεγχος γίνεται ξανά εδώ: αν στο μεταξύ προστέθηκαν δηλώσεις, τα τμήματα δεν αντικαθίστανται.
+			wp_safe_redirect( dgn_admin_url( 'settings', array( 'dgn_msg' => 'draseisblocked' ) ) );
+			exit;
+		}
+		$raw            = get_option( DGN_OPTION, array() );
+		$raw            = is_array( $raw ) ? $raw : array();
+		$raw['classes'] = implode( "\n", $c['draseis'] );
+		update_option( DGN_OPTION, $raw, false );
+		update_option( 'draseis_exams_link', 'yes' );
+		$msg    = 'draseiscopied';
+		$nograde = array_values( array_filter( $c['draseis'], function ( $x ) {
+			return '' === dgn_class_grade( $x );
+		} ) );
+		if ( $nograde ) {
+			$msg .= ',draseisnograde';
+			$args['names'] = implode( ', ', $nograde );
+		}
+	}
+	wp_safe_redirect( dgn_admin_url( 'settings', array_merge( array( 'dgn_msg' => $msg ), $args ) ) );
 	exit;
 }
 
@@ -130,10 +279,24 @@ function dgn_admin_save() {
 	// Ομάδες προσανατολισμού: μόνο αν η φόρμα τις έστειλε (το JS της σελίδας προσθέτει το groups_present).
 	// Έτσι, αν για κάποιο λόγο δεν φορτώσει το JS, οι αποθηκευμένες ομάδες δεν σβήνονται.
 	if ( ! empty( $in['groups_present'] ) ) {
-		$list = array();
+		$list     = array();
+		$cl       = dgn_classes( $new ); // η ΝΕΑ λίστα τμημάτων: τα τμήματα κάθε ομάδας ελέγχονται απέναντί της
+		$gc_lost  = false;
 		foreach ( ( isset( $in['groups'] ) && is_array( $in['groups'] ) ? $in['groups'] : array() ) as $g ) {
-			$g = dgn_clean_group( $g );
+			$posted = is_array( $g ) && isset( $g['classes'] ) && is_array( $g['classes'] ) ? $g['classes'] : array();
+			$g      = dgn_clean_group( $g, $cl );
 			if ( $g && count( $list ) < 30 ) {
+				// Είχαν επιλεγεί τμήματα, αλλά κανένα δεν υπάρχει πια στην τάξη της ομάδας: η ομάδα αφορά όλη την τάξη.
+				if ( $posted && ! $g['classes'] ) {
+					$any = false;
+					foreach ( $posted as $c ) {
+						if ( is_string( $c ) && in_array( trim( $c ), $cl, true ) && dgn_class_grade( $c ) === $g['grade'] ) {
+							$any = true;
+							break;
+						}
+					}
+					$gc_lost = $gc_lost || ! $any;
+				}
 				$list[] = $g;
 			}
 		}
@@ -141,6 +304,7 @@ function dgn_admin_save() {
 	}
 	if ( 'gym' === dgn_effective_type( $new ) ) {
 		$new['groups'] = array(); // το Γυμνάσιο δεν έχει ομάδες προσανατολισμού
+		$gc_lost       = false;
 	}
 
 	// Χωρίς sanitize_text_field: αφαιρεί σιωπηλά ακολουθίες όπως «%2a» και αλλάζει τον κωδικό.
@@ -172,9 +336,16 @@ function dgn_admin_save() {
 		exit;
 	}
 	update_option( DGN_OPTION, $new, false );
+	// Σύνδεση με το Draseis (1.13.0): γράφεται μόνο αν υπάρχει το Draseis και η φόρμα έστειλε επιλογή.
+	if ( dgn_draseis_present() && isset( $in['draseis_link'] ) && in_array( $in['draseis_link'], array( 'yes', 'no' ), true ) ) {
+		update_option( 'draseis_exams_link', $in['draseis_link'] );
+	}
 	$msg = $bad ? 'savedbad' : 'saved';
 	if ( $type_set ) {
 		$msg = ( 'lyk' === $new['school_type'] ? 'typelyk' : 'typegym' ) . ( $bad ? ',savedbad' : '' );
+	}
+	if ( ! empty( $gc_lost ) ) {
+		$msg .= ',grpnoclass';
 	}
 	wp_safe_redirect( dgn_admin_url( 'settings', array( 'dgn_msg' => $msg ) ) );
 	exit;
@@ -240,6 +411,12 @@ function dgn_admin_notice( $msg ) {
 		'typegym'    => array( 'success', 'Ο τύπος σχολείου ορίστηκε οριστικά: Γυμνάσιο. Οι ρυθμίσεις αποθηκεύτηκαν.' ),
 		'typelyk'    => array( 'success', 'Ο τύπος σχολείου ορίστηκε οριστικά: Λύκειο. Οι ρυθμίσεις αποθηκεύτηκαν.' ),
 		'holfilled'  => array( 'success', 'Οι πανελλαδικές αργίες επαναφέρθηκαν για την τρέχουσα σχολική χρονιά.' ),
+		'grpnoclass' => array( 'warning', 'Μια ομάδα είχε επιλεγμένα τμήματα που δεν υπάρχουν πια στη λίστα «Τμήματα». Η ομάδα αφορά τώρα όλη την τάξη της· ελέγξτε τα τμήματα κάθε ομάδας.' ),
+		'draseislinked'   => array( 'success', 'Τα δύο πρόσθετα συνδέθηκαν: το Draseis Planner χρησιμοποιεί τα τμήματα αυτής της σελίδας.' ),
+		'draseisunlinked' => array( 'success', 'Τα δύο πρόσθετα λειτουργούν ανεξάρτητα.' ),
+		'draseiscopied'   => array( 'success', 'Τα τμήματα αντιγράφηκαν από το Draseis Planner και τα δύο πρόσθετα συνδέθηκαν.' ),
+		'draseisblocked'  => array( 'error', 'Τα τμήματα δεν αντιγράφηκαν: κάποιο τμήμα του Exams Planner έχει δηλώσεις. Διαβάστε ξανά το μήνυμα.' ),
+		'draseisnograde'  => array( 'warning', 'Ελέγξτε τα τμήματα που αντιγράφηκαν: ' . ( isset( $_GET['names'] ) ? sanitize_text_field( wp_unslash( $_GET['names'] ) ) : '' ) . ' (δεν ξεκινούν με γράμμα τάξης, π.χ. Α, Β, Γ· γι\' αυτά δεν ισχύουν οι κανόνες τάξης).' ),
 		'savedbad'   => array( 'warning', 'Οι ρυθμίσεις αποθηκεύτηκαν, αλλά κάποιες γραμμές στις αργίες δεν αναγνωρίστηκαν και αγνοούνται (δείτε παρακάτω).' ),
 		'noclasses'  => array( 'error', 'Δεν αποθηκεύτηκε: γράψτε τουλάχιστον ένα τμήμα.' ),
 		'nosubjects' => array( 'error', 'Δεν αποθηκεύτηκε: γράψτε τουλάχιστον ένα μάθημα.' ),
@@ -359,6 +536,7 @@ function dgn_admin_tab_settings() {
 	$type_names = array( 'gym' => 'Γυμνάσιο', 'lyk' => 'Λύκειο' );
 	// Οι ομάδες όπως είναι αποθηκευμένες (και όσες αγνοούνται λόγω ίδιου ονόματος, για να φαίνονται και να διορθωθούν).
 	$form_groups = array_values( array_filter( array_map( 'dgn_clean_group', is_array( $s['groups'] ) ? $s['groups'] : array() ) ) );
+	dgn_admin_draseis_box( $s ); // μόνο όταν υπάρχει το Draseis Planner και δεν έχει απαντηθεί η σύνδεση
 	?>
 	<form class="dgn-settings" data-type="<?php echo esc_attr( $etype ); ?>" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 		<input type="hidden" name="action" value="dgn_save">
@@ -390,7 +568,7 @@ function dgn_admin_tab_settings() {
 					<p class="description">Δεν εμφανίζεται στη σελίδα. Χρησιμοποιείται μόνο όταν οι καθηγητές μπαίνουν με κοινό κωδικό. Με αυτό το όνομα θα αποθηκεύεται στον browser τους ο κωδικός.</p>
 				</td>
 			</tr>
-			<?php dgn_admin_section1_rows( $s, $form_groups ); ?>
+			<?php dgn_admin_draseis_row(); dgn_admin_section1_rows( $s, $form_groups ); ?>
 			</table>
 		</div>
 		<div class="dgn-sec">
@@ -577,20 +755,33 @@ function dgn_admin_tab_settings() {
 		gp.type = 'hidden'; gp.name = 'groups_present'; gp.value = '1';
 		form.appendChild( gp );
 		// Η κάρτα μιας ομάδας: κοινή συνάρτηση με την καρτέλα «Παράδειγμα» (dgn_admin_group_card_js, 1.12.0).
-		function card( g ) { return window.dgnGroupCard( g, renumber ); }
+		// Η τρέχουσα λίστα «Τμήματα» της φόρμας (γραμμές, χωρίς κενά και διπλότυπα, έως 20 χαρακτήρες) — όπως στον server.
+		function getClasses() {
+			var out = [];
+			classesEl.value.split( /\r?\n/ ).forEach( function ( l ) { l = l.trim(); if ( l && l.length <= 20 && out.indexOf( l ) === -1 ) out.push( l ); } );
+			return out;
+		}
+		function card( g ) { return window.dgnGroupCard( g, renumber, getClasses ); }
 		function cards() { return Array.prototype.slice.call( box.querySelectorAll( '.dgn-group-card' ) ); }
 		function renumber() {
 			cards().forEach( function ( c, i ) {
-				c.querySelectorAll( '[data-f]' ).forEach( function ( el ) { el.name = 'groups[' + i + '][' + el.getAttribute( 'data-f' ) + ']'; } );
+				c.dgnPrefix = 'groups[' + i + ']';
+				c.querySelectorAll( '[data-f]:not([data-multi])' ).forEach( function ( el ) { el.name = c.dgnPrefix + '[' + el.getAttribute( 'data-f' ) + ']'; } );
+				if ( c.dgnRefresh ) c.dgnRefresh(); // τα τικ παίρνουν το νέο όνομα πεδίου
 			} );
 		}
 		function readGroups() {
 			return cards().map( function ( c ) {
-				var o = {};
-				c.querySelectorAll( '[data-f]' ).forEach( function ( el ) { o[ el.getAttribute( 'data-f' ) ] = el.value; } );
+				var o = { classes: [] };
+				c.querySelectorAll( '[data-f]' ).forEach( function ( el ) {
+					if ( el.getAttribute( 'data-multi' ) ) { if ( el.checked ) o.classes.push( el.value ); }
+					else o[ el.getAttribute( 'data-f' ) ] = el.value;
+				} );
 				return o;
 			} );
 		}
+		// Όταν αλλάζει η λίστα «Τμήματα», τα τικ των ομάδων ακολουθούν.
+		classesEl.addEventListener( 'input', function () { cards().forEach( function ( c ) { if ( c.dgnRefresh ) c.dgnRefresh(); } ); } );
 		function renderGroups( list ) {
 			box.textContent = '';
 			( list || [] ).forEach( function ( g ) { box.appendChild( card( g ) ); } );
@@ -598,7 +789,7 @@ function dgn_admin_tab_settings() {
 		}
 		renderGroups( D.groups );
 		if ( addBtn ) addBtn.addEventListener( 'click', function () {
-			var c = card( { name: '', grade: 'Β', short: '', subjects: '' } );
+			var c = card( { name: '', grade: 'Β', short: '', subjects: '', classes: [] } );
 			box.appendChild( c ); renumber();
 			c.querySelector( 'input' ).focus();
 		} );
@@ -699,6 +890,12 @@ function dgn_admin_settings_css() {
 		.dgn-settings .dgn-group-card input, .dgn-settings .dgn-group-card select, .dgn-settings .dgn-group-card textarea { width: 100%; box-sizing: border-box; }
 		.dgn-settings .dgn-group-card textarea { margin-top: 0; }
 		.dgn-settings .dgn-group-label { color: #646970; font-size: 12px; font-weight: 400; }
+		.dgn-settings .dgn-group-classes { margin-top: 10px; }
+		.dgn-settings .dgn-group-classes .dgn-gc-h { display: block; font-weight: 600; font-size: 13px; margin: 0 0 2px; }
+		.dgn-settings .dgn-group-classes .description { margin: 0 0 6px; font-size: 12px; }
+		.dgn-settings .dgn-group-card .dgn-group-ticks { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 4px 0; }
+		.dgn-settings .dgn-group-card .dgn-group-ticks label { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; font-size: 13px; margin: 0; }
+		.dgn-settings .dgn-group-card .dgn-group-ticks input[type=checkbox] { width: 16px; height: 16px; min-width: 16px; margin: 0; }
 		.dgn-settings .dgn-group-del { color: #b32d2e; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; font-size: 13px; }
 	</style>
 <?php
@@ -757,7 +954,14 @@ function dgn_admin_group_card_js() {
 			Object.keys( attrs || {} ).forEach( function ( k ) { if ( k === 'text' ) n.textContent = attrs[ k ]; else n.setAttribute( k, attrs[ k ] ); } );
 			return n;
 		}
-		return function ( g, onRemove ) {
+		// Η τάξη ενός τμήματος = το πρώτο του γράμμα (όπως στο PHP: λατινικά A, B → Α, Β).
+		function gradeChar( name ) {
+			var ch = String( name ).trim().charAt( 0 ).toUpperCase();
+			ch = { 'A': 'Α', 'B': 'Β', 'Ά': 'Α', 'Έ': 'Ε', 'Ή': 'Η', 'Ί': 'Ι', 'Ό': 'Ο', 'Ύ': 'Υ', 'Ώ': 'Ω' }[ ch ] || ch;
+			return /^[Α-Ω]$/.test( ch ) ? ch : '';
+		}
+		// getClasses: συνάρτηση που επιστρέφει τη λίστα «Τμήματα» της σελίδας (τα τικ ακολουθούν τη λίστα).
+		return function ( g, onRemove, getClasses ) {
 			var id = 'dgn-g' + ( ++uid );
 			var c = mk( 'div', { 'class': 'dgn-group-card' } );
 			var topRow = mk( 'div', { 'class': 'dgn-group-top' } );
@@ -778,9 +982,45 @@ function dgn_admin_group_card_js() {
 			var subj = mk( 'textarea', { id: id + 'm', rows: '4', 'data-f': 'subjects', placeholder: 'Ένα ανά γραμμή, με τη συντομογραφία:\nΦυσική | ΦΥΣ' } ); subj.value = g.subjects || '';
 			var del = mk( 'button', { type: 'button', 'class': 'dgn-group-del', text: 'Αφαίρεση ομάδας' } );
 			del.addEventListener( 'click', function () { c.parentNode.removeChild( c ); if ( onRemove ) onRemove(); } );
+			// Τμήματα της ομάδας (1.13.0): κενό = όλη η τάξη. Όσα επιλεγούν έχουν κοινούς μαθητές με την ομάδα.
+			var picked = {};
+			( g.classes || [] ).forEach( function ( x ) { picked[ x ] = true; } );
+			var cwrap = mk( 'div', { 'class': 'dgn-group-classes' } );
+			var ticks = mk( 'div', { 'class': 'dgn-group-ticks', role: 'group', 'aria-labelledby': id + 'ch' } );
+			var cstat = mk( 'p', { 'class': 'dgn-group-label', style: 'margin:4px 0 0' } );
+			cwrap.appendChild( mk( 'span', { 'class': 'dgn-gc-h', id: id + 'ch', text: 'Τμήματα της ομάδας' } ) );
+			cwrap.appendChild( mk( 'p', { 'class': 'description', text: 'Αφήστε κενό αν η ομάδα έχει μαθητές από όλα τα τμήματα της τάξης. Επιλέξτε μόνο όσα τμήματα έχουν μαθητές στην ομάδα, αν είναι λιγότερα.' } ) );
+			cwrap.appendChild( ticks ); cwrap.appendChild( cstat );
+			function refresh() {
+				var list = getClasses ? getClasses() : [], gr = grade.value;
+				var mine = list.filter( function ( x ) { return gradeChar( x ) === gr; } );
+				ticks.textContent = '';
+				mine.forEach( function ( x, i ) {
+					var lab = mk( 'label', {} ), cb = mk( 'input', { type: 'checkbox', value: x, 'data-f': 'classes', 'data-multi': '1' } );
+					if ( c.dgnPrefix ) cb.name = c.dgnPrefix + '[classes][]';
+					cb.checked = !! picked[ x ];
+					cb.addEventListener( 'change', function () { picked[ x ] = cb.checked; status(); } );
+					lab.appendChild( cb ); lab.appendChild( document.createTextNode( x ) );
+					ticks.appendChild( lab );
+				} );
+				status();
+			}
+			function status() {
+				var gr = grade.value, boxes = ticks.querySelectorAll( 'input:checked' ), n = boxes.length, all = ticks.querySelectorAll( 'input' ).length;
+				var t;
+				if ( ! all ) t = 'Δεν υπάρχουν τμήματα της ' + gr + '΄ τάξης στη λίστα «Τμήματα».';
+				else if ( ! n ) t = 'Δεν έχουν επιλεγεί τμήματα: η ομάδα αφορά όλη την ' + gr + '΄ τάξη.';
+				else if ( n === all ) t = 'Έχουν επιλεγεί όλα τα τμήματα: η ομάδα αφορά όλη την ' + gr + '΄ τάξη.';
+				else t = 'Η ομάδα αφορά τα ' + Array.prototype.map.call( boxes, function ( b ) { return b.value; } ).join( ', ' ) + '.';
+				cstat.textContent = t;
+			}
+			c.dgnRefresh = refresh;
+			grade.addEventListener( 'change', refresh );
 			c.appendChild( topRow ); c.appendChild( preview );
 			c.appendChild( mk( 'label', { 'for': id + 'm', style: 'margin-top:10px', text: 'Μαθήματα της ομάδας' } ) );
 			c.appendChild( subj );
+			c.appendChild( cwrap );
+			refresh();
 			var p = mk( 'p', { style: 'margin:8px 0 0' } ); p.appendChild( del ); c.appendChild( p );
 			return c;
 		};
@@ -838,11 +1078,17 @@ function dgn_admin_tab_example() {
 		function fill() {
 			cl.value = D.classes; su.value = D.subjects;
 			box.textContent = '';
-			D.groups.forEach( function ( g ) { box.appendChild( window.dgnGroupCard( g ) ); } );
+			D.groups.forEach( function ( g ) { box.appendChild( window.dgnGroupCard( g, null, getClasses ) ); } );
 		}
+		function getClasses() {
+			var out = [];
+			cl.value.split( /\r?\n/ ).forEach( function ( l ) { l = l.trim(); if ( l && l.length <= 20 && out.indexOf( l ) === -1 ) out.push( l ); } );
+			return out;
+		}
+		cl.addEventListener( 'input', function () { box.querySelectorAll( '.dgn-group-card' ).forEach( function ( c ) { if ( c.dgnRefresh ) c.dgnRefresh(); } ); } );
 		fill();
 		if ( add ) add.addEventListener( 'click', function () {
-			var c = window.dgnGroupCard( { name: '', grade: 'Β', short: '', subjects: '' } );
+			var c = window.dgnGroupCard( { name: '', grade: 'Β', short: '', subjects: '', classes: [] }, null, getClasses );
 			box.appendChild( c );
 			c.querySelector( 'input' ).focus();
 		} );

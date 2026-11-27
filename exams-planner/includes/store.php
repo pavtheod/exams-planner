@@ -62,7 +62,8 @@ function dgn_log_prune() {
 
 /**
  * Οι «αντίθετες» μονάδες μιας μονάδας: για τμήμα οι ομάδες της τάξης του, για ομάδα τα τμήματα της τάξης της.
- * Έχουν κοινούς μαθητές με τη μονάδα. Κενό = δεν υπάρχουν ομάδες (Γυμνάσιο, Α΄ Λυκείου): κανόνες όπως πριν την 1.11.0.
+ * Έχουν κοινούς μαθητές με τη μονάδα (από 1.13.0: με βάση τα τμήματα που έχει επιλέξει κάθε ομάδα).
+ * Κενό = δεν υπάρχουν ομάδες (Γυμνάσιο, Α΄ Λυκείου): κανόνες όπως πριν την 1.11.0.
  *
  * @return array{0: bool, 1: string[]} [είναι ομάδα;, αντίθετες μονάδες]
  */
@@ -70,9 +71,19 @@ function dgn_unit_overlaps( $unit, $s = null ) {
 	$s      = $s ? $s : dgn_settings();
 	$groups = dgn_groups( $s );
 	if ( isset( $groups[ $unit ] ) ) {
-		return array( true, dgn_classes_of_grade( $groups[ $unit ]['grade'], $s ) );
+		// 1.13.0: ομάδα με επιλεγμένα τμήματα έχει κοινούς μαθητές μόνο με αυτά· χωρίς επιλογή, με όλα τα τμήματα της τάξης.
+		$of_grade = dgn_classes_of_grade( $groups[ $unit ]['grade'], $s );
+		$only     = $groups[ $unit ]['classes'];
+		return array( true, $only ? array_values( array_intersect( $of_grade, $only ) ) : $of_grade );
 	}
-	return array( false, dgn_groups_of_grade( dgn_class_grade( $unit ), $s ) );
+	// Τμήμα: οι ομάδες της τάξης του που το περιλαμβάνουν (ομάδα χωρίς επιλογή τμημάτων = όλη η τάξη).
+	$out = array();
+	foreach ( dgn_groups( $s ) as $label => $g ) {
+		if ( $g['grade'] === dgn_class_grade( $unit ) && ( ! $g['classes'] || in_array( $unit, $g['classes'], true ) ) ) {
+			$out[] = $label;
+		}
+	}
+	return array( false, $out );
 }
 
 /**
