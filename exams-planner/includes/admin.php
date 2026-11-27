@@ -977,7 +977,7 @@ function dgn_admin_group_card_js() {
 			fShort.appendChild( mk( 'label', { 'for': id + 's', text: 'Συντομογραφία' } ) ); fShort.appendChild( short );
 			topRow.appendChild( fName ); topRow.appendChild( fGrade ); topRow.appendChild( fShort );
 			var preview = mk( 'p', { 'class': 'dgn-group-label', style: 'margin:6px 0 0' } );
-			function upd() { preview.textContent = 'Στον πίνακα: ' + grade.value + '·' + ( short.value.trim().toUpperCase() || '…' ); }
+			function upd() { preview.textContent = 'Εμφανίζεται ως: ' + grade.value + '·' + ( short.value.trim().toUpperCase() || '…' ); }
 			name.addEventListener( 'input', upd ); grade.addEventListener( 'change', upd ); short.addEventListener( 'input', upd ); upd();
 			var subj = mk( 'textarea', { id: id + 'm', rows: '4', 'data-f': 'subjects', placeholder: 'Ένα ανά γραμμή, με τη συντομογραφία:\nΦυσική | ΦΥΣ' } ); subj.value = g.subjects || '';
 			var del = mk( 'button', { type: 'button', 'class': 'dgn-group-del', text: 'Αφαίρεση ομάδας' } );
@@ -989,7 +989,7 @@ function dgn_admin_group_card_js() {
 			var ticks = mk( 'div', { 'class': 'dgn-group-ticks', role: 'group', 'aria-labelledby': id + 'ch' } );
 			var cstat = mk( 'p', { 'class': 'dgn-group-label', style: 'margin:4px 0 0' } );
 			cwrap.appendChild( mk( 'span', { 'class': 'dgn-gc-h', id: id + 'ch', text: 'Τμήματα της ομάδας' } ) );
-			cwrap.appendChild( mk( 'p', { 'class': 'description', text: 'Αφήστε κενό αν η ομάδα έχει μαθητές από όλα τα τμήματα της τάξης. Επιλέξτε μόνο όσα τμήματα έχουν μαθητές στην ομάδα, αν είναι λιγότερα.' } ) );
+			cwrap.appendChild( mk( 'p', { 'class': 'description', text: 'Επιλέξτε τα τμήματα που έχουν μαθητές σε αυτή την ομάδα. Αν έχει μαθητές από όλα τα τμήματα της τάξης, μην επιλέξετε κανένα.' } ) );
 			cwrap.appendChild( ticks ); cwrap.appendChild( cstat );
 			function refresh() {
 				var list = getClasses ? getClasses() : [], gr = grade.value;
@@ -1009,8 +1009,8 @@ function dgn_admin_group_card_js() {
 				var gr = grade.value, boxes = ticks.querySelectorAll( 'input:checked' ), n = boxes.length, all = ticks.querySelectorAll( 'input' ).length;
 				var t;
 				if ( ! all ) t = 'Δεν υπάρχουν τμήματα της ' + gr + '΄ τάξης στη λίστα «Τμήματα».';
-				else if ( ! n ) t = 'Δεν έχουν επιλεγεί τμήματα: η ομάδα αφορά όλη την ' + gr + '΄ τάξη.';
-				else if ( n === all ) t = 'Έχουν επιλεγεί όλα τα τμήματα: η ομάδα αφορά όλη την ' + gr + '΄ τάξη.';
+				else if ( ! n ) t = 'Δεν έχει επιλεγεί κανένα τμήμα: η ομάδα αφορά όλη τη ' + gr + '΄ τάξη.';
+				else if ( n === all ) t = 'Έχουν επιλεγεί όλα τα τμήματα: η ομάδα αφορά όλη τη ' + gr + '΄ τάξη.';
 				else t = 'Η ομάδα αφορά τα ' + Array.prototype.map.call( boxes, function ( b ) { return b.value; } ).join( ', ' ) + '.';
 				cstat.textContent = t;
 			}
