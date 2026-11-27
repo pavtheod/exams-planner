@@ -491,7 +491,7 @@
     if (state.filter) f.cls.value = state.filter;
     f.date = el('input', { id: 'dgn-date', type: 'date', required: true });
     if (!isAdmin()) {
-      var minD = !cfg.allowPast && cfg.today > cfg.syStart ? cfg.today : cfg.syStart;
+      var minD = cfg.today > cfg.syStart ? cfg.today : cfg.syStart;
       if ((+cfg.minNotice || 0) > 0 && earliest > minD) minD = earliest;
       f.date.setAttribute('min', minD);
       f.date.setAttribute('max', cfg.syEnd);
@@ -651,7 +651,6 @@
     var d = parse(earliest);
     return 'Τα διαγωνίσματα δηλώνονται τουλάχιστον ' + cfg.minNotice + ' εργάσιμες ημέρες πριν. Η νωρίτερη ημερομηνία που μπορείτε να δηλώσετε είναι η ' + DAYS_LONG[(d.getDay() + 6) % 7] + ' ' + d.getDate() + '/' + (d.getMonth() + 1) + '.';
   }
-  function canBookPast() { return cfg.allowPast || isAdmin(); }
   function canDelete(e) { return isAdmin() || e.mine || !!state.keys[e.id]; }
 
   function submit(ev) {
@@ -665,7 +664,7 @@
     var d = parse(date), wd = d.getDay();
     if (wd === 0 || wd === 6) { setMsg('Η ημερομηνία πέφτει Σαββατοκύριακο.', 'err'); return; }
     if (cfg.holidays[date]) { setMsg('Η ' + longDate(date) + ' είναι αργία (' + cfg.holidays[date] + ').', 'err'); return; }
-    if (isPast(date) && !canBookPast()) { setMsg('Η ημερομηνία έχει περάσει.', 'err'); return; }
+    if (isPast(date) && !isAdmin()) { setMsg('Η ημερομηνία έχει περάσει.', 'err'); return; }
     if (tooSoon(date)) { setMsg(tooSoonMsg(), 'err'); return; }
     if (!inSchoolYear(date) && !isAdmin()) { setMsg('Η ημερομηνία είναι εκτός του τρέχοντος σχολικού έτους (' + short(cfg.syStart) + '/' + cfg.syStart.slice(0, 4) + ' – ' + short(cfg.syEnd) + '/' + cfg.syEnd.slice(0, 4) + ').', 'err'); return; }
 
@@ -815,7 +814,7 @@
           // Οι ρίγες «εβδομάδα πλήρης» και τα κλειστά κελιά αφορούν μόνο όσους μπορούν να δηλώσουν.
           var full = !e && canWrite() && weekFull(cls, wk);
           var clash = !e && canWrite() ? dayClash(cls, ds) : '';
-          var past = (isPast(ds) && !canBookPast()) || (!inSchoolYear(ds) && !isAdmin()) || tooSoon(ds);
+          var past = (isPast(ds) && !isAdmin()) || (!inSchoolYear(ds) && !isAdmin()) || tooSoon(ds);
           // «Κλειστές» μελλοντικές μέρες (προθεσμία δήλωσης ή εκτός σχολικής χρονιάς): διαγράμμιση μόνο για καθηγητές.
           // Οι περασμένες μέρες μένουν λευκές: είναι αυτονόητο ότι δεν δηλώνονται.
           var soon = past && !isPast(ds);

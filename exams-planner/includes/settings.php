@@ -317,36 +317,6 @@ function dgn_classes_of_grade( $grade, $s = null ) {
 	} ) );
 }
 
-/** Οι ομάδες μιας τάξης (ετικέτες). */
-function dgn_groups_of_grade( $grade, $s = null ) {
-	$out = array();
-	if ( '' === (string) $grade ) {
-		return $out;
-	}
-	foreach ( dgn_groups( $s ) as $label => $g ) {
-		if ( $g['grade'] === $grade ) {
-			$out[] = $label;
-		}
-	}
-	return $out;
-}
-
-/** Μαθήματα μιας μονάδας: για τμήμα τα γενικά της τάξης του, για ομάδα τα δικά της. [όνομα => συντομογραφία] */
-function dgn_unit_subjects( $unit, $s = null ) {
-	$s      = $s ? $s : dgn_settings();
-	$groups = dgn_groups( $s );
-	if ( isset( $groups[ $unit ] ) ) {
-		return $groups[ $unit ]['subjects'];
-	}
-	$out = array();
-	foreach ( dgn_subjects( $s ) as $name => $abbr ) {
-		if ( dgn_subject_allowed( $name, $unit, $s ) ) {
-			$out[ $name ] = $abbr;
-		}
-	}
-	return $out;
-}
-
 function dgn_settings() {
 	static $cache = null;
 	if ( null !== $cache ) {
