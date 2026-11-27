@@ -989,7 +989,7 @@ function dgn_admin_group_card_js() {
 			var ticks = mk( 'div', { 'class': 'dgn-group-ticks', role: 'group', 'aria-labelledby': id + 'ch' } );
 			var cstat = mk( 'p', { 'class': 'dgn-group-label', style: 'margin:4px 0 0' } );
 			cwrap.appendChild( mk( 'span', { 'class': 'dgn-gc-h', id: id + 'ch', text: 'Τμήματα της ομάδας' } ) );
-			cwrap.appendChild( mk( 'p', { 'class': 'description', text: 'Επιλέξτε τα τμήματα που έχουν μαθητές σε αυτή την ομάδα. Αν έχει μαθητές από όλα τα τμήματα της τάξης, μην επιλέξετε κανένα.' } ) );
+			cwrap.appendChild( mk( 'p', { 'class': 'description', text: 'Επιλέξτε τα τμήματα από τα οποία προέρχονται οι μαθητές της ομάδας. Αν συμμετέχουν μαθητές από όλα τα τμήματα, μην επιλέξετε κανένα.' } ) );
 			cwrap.appendChild( ticks ); cwrap.appendChild( cstat );
 			function refresh() {
 				var list = getClasses ? getClasses() : [], gr = grade.value;
